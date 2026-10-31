@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use App\Models\Business;
+use Illuminate\Support\Collection;
 
 interface FinancialReportRepository
 {
@@ -30,4 +31,7 @@ interface FinancialReportRepository
 
     /** @return array<string, mixed> */
     public function generateVatSummary(Business $business, string $from, string $to): array;
+
+    /** @return Collection<int, object> */
+    public function vatLines(Business $business, string $from, string $to): Collection;
 }

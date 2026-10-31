@@ -17,6 +17,13 @@ interface JournalEntryRepository
      */
     public function postedBalancesForAccounts(Business $business, array $accountIds): array;
 
+    /**
+     * The lowest end-of-day posted balance (debit minus credit) of an account on or after a date.
+     *
+     * @return array{balance: string, date: string}
+     */
+    public function lowestPostedBalanceFrom(Business $business, int $accountId, string $fromDate): array;
+
     /** @param array<string, mixed> $attributes
      * @param  list<array<string, mixed>>  $lines
      */

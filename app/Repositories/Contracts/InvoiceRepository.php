@@ -15,7 +15,7 @@ interface InvoiceRepository
 
     public function findForDisplay(Business $business, int $invoiceId): Invoice;
 
-    public function invoiceNumberExists(Business $business, string $kind, string $invoiceNumber): bool;
+    public function invoiceNumberExists(Business $business, string $kind, string $invoiceNumber, int $counterpartyId): bool;
 
     public function nextSalesInvoiceNumber(Business $business, int $calendarYear): string;
 

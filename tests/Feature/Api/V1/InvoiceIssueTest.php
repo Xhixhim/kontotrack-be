@@ -184,4 +184,24 @@ class InvoiceIssueTest extends TestCase
 
         $this->assertDatabaseCount('journal_entries', 1);
     }
+
+    public function test_two_suppliers_may_send_the_same_bill_number_but_one_supplier_may_not_repeat_it(): void
+    {
+        [$user, $business] = $this->bookkeepingBusiness();
+        $firstSupplier = Counterparty::factory()->for($business)->supplier()->create();
+        $secondSupplier = Counterparty::factory()->for($business)->supplier()->create();
+        $bill = fn (Counterparty $supplier): array => [
+            'kind' => 'purchase',
+            'counterparty_id' => $supplier->id,
+            'invoice_number' => '001',
+            'issued_on' => '2026-06-15',
+            'lines' => [['description' => 'Consulting', 'quantity' => '1', 'unit_price' => '50.00', 'vat_code' => 'S18']],
+        ];
+
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/invoices", $bill($firstSupplier))->assertCreated();
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/invoices", $bill($secondSupplier))->assertCreated();
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/invoices", $bill($firstSupplier))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['invoice_number' => 'This bill number has already been recorded for this supplier.']);
+    }
 }

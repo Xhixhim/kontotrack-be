@@ -302,7 +302,13 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
         return $cards;
     }
 
-    public function generateVatSummary(Business $business, string $from, string $to): array
+    /**
+     * Issued, credited, and cancelled invoice lines that belong in the VAT records of a period. A cancellation is
+     * reported on its cancellation date as a reversal of the original lines.
+     *
+     * @return Collection<int, object>
+     */
+    public function vatLines(Business $business, string $from, string $to): Collection
     {
         $businessId = (int) $business->getKey();
         $invoiceLineQuery = fn () => DB::table('invoices')
@@ -327,6 +333,7 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
                 'invoices.document_type',
                 'counterparties.name as counterparty_name',
                 'counterparties.nui as counterparty_nui',
+                'counterparties.country_code as counterparty_country',
                 'invoice_lines.vat_code',
                 'invoice_lines.net_amount',
                 'invoice_lines.tax_amount',
@@ -358,9 +365,15 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
 
                 return $line;
             });
-        $invoiceLines = $issuedLines->concat($cancellationLines)
+
+        return $issuedLines->concat($cancellationLines)
             ->sortBy(fn (object $line): string => $line->reported_on.'|'.($line->entry_type === 'invoice' ? '0' : '1').'|'.$line->invoice_number)
             ->values();
+    }
+
+    public function generateVatSummary(Business $business, string $from, string $to): array
+    {
+        $invoiceLines = $this->vatLines($business, $from, $to);
 
         $rowsByInvoiceAndVatCode = [];
         $summaryByKindAndVatCode = [];

@@ -294,6 +294,43 @@ class PayrollTest extends TestCase
     }
 
     /** @return array{User, Business} */
+    public function test_exports_an_approved_run_as_the_edi_wage_and_pension_list(): void
+    {
+        [$user, $business] = $this->payrollBusiness();
+        $this->mapPayrollAccounts($business);
+        Employee::factory()->for($business)->create(['first_name' => 'Arta', 'last_name' => 'Krasniqi', 'personal_number' => '1234567890', 'gross_salary' => '1000.00']);
+        $runId = $this->createRun($user, $business);
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/payroll-runs/{$runId}/approve")->assertOk();
+
+        $this->actingAs($user)->getJson("/api/v1/businesses/{$business->id}/payroll-runs/{$runId}/atk-wm")
+            ->assertOk()
+            ->assertExactJson(['data' => ['period' => '2026-06', 'employees' => 1, 'problems' => []]]);
+
+        $response = $this->actingAs($user)->get("/api/v1/businesses/{$business->id}/payroll-runs/{$runId}/atk-wm?download=1")->assertOk();
+        $path = tempnam(sys_get_temp_dir(), 'wm');
+        file_put_contents($path, $response->getContent());
+        $zip = new \ZipArchive;
+        $zip->open($path);
+        $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        unlink($path);
+
+        $this->assertStringContainsString('<c r="C3" t="inlineStr"><is><t xml:space="preserve">1234567890</t>', $sheet);
+        $this->assertStringContainsString('<c r="D3" s="2"><v>1000</v></c><c r="E3" s="2"><v>50</v></c><c r="F3" s="2"><v>50</v></c>', $sheet);
+        $this->assertStringContainsString('<c r="I3" t="inlineStr"><is><t xml:space="preserve">PO</t>', $sheet);
+    }
+
+    public function test_refuses_to_export_a_draft_run_for_the_wm_declaration(): void
+    {
+        [$user, $business] = $this->payrollBusiness();
+        Employee::factory()->for($business)->create(['gross_salary' => '1000.00']);
+        $runId = $this->createRun($user, $business);
+
+        $this->actingAs($user)->getJson("/api/v1/businesses/{$business->id}/payroll-runs/{$runId}/atk-wm")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payroll_run' => 'Approve the payroll run before exporting it for the WM declaration.']);
+    }
+
     private function payrollBusiness(): array
     {
         $business = Business::factory()->create();

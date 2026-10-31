@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AccountingPeriodController;
+use App\Http\Controllers\Api\V1\AtkExportController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\BankTransactionController;
@@ -156,6 +157,14 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/reports/financial', [FinancialReportController::class, 'index'])
             ->middleware('can:view,business');
+        Route::get('/businesses/{business}/atk/vat-books', [AtkExportController::class, 'vatBooks'])
+            ->middleware('can:view,business');
+        Route::get('/businesses/{business}/atk/vat-books/{book}.xlsx', [AtkExportController::class, 'vatBookFile'])
+            ->whereIn('book', ['sales', 'purchases'])
+            ->middleware('can:view,business');
+        Route::get('/businesses/{business}/payroll-runs/{payrollRun}/atk-wm', [AtkExportController::class, 'payrollList'])
+            ->whereNumber('payrollRun')
+            ->middleware('can:viewPayroll,business');
         Route::get('/businesses/{business}/counterparties', [CounterpartyController::class, 'index'])
             ->middleware('can:view,business');
         Route::post('/businesses/{business}/counterparties', [CounterpartyController::class, 'store'])
@@ -244,6 +253,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/businesses/{business}/accounts', [AccountController::class, 'index'])
             ->middleware('can:view,business');
         Route::post('/businesses/{business}/accounts', [AccountController::class, 'store'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/accounts/kosovo-template', [AccountController::class, 'applyKosovoTemplate'])
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/posting-accounts', [PostingAccountController::class, 'index'])
             ->middleware('can:view,business');

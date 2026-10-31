@@ -32,10 +32,11 @@ class EloquentInvoiceRepository implements InvoiceRepository
             ->firstOrFail();
     }
 
-    public function invoiceNumberExists(Business $business, string $kind, string $invoiceNumber): bool
+    public function invoiceNumberExists(Business $business, string $kind, string $invoiceNumber, int $counterpartyId): bool
     {
         return $business->invoices()
             ->where('kind', $kind)
+            ->where('counterparty_id', $counterpartyId)
             ->where('invoice_number', $invoiceNumber)
             ->exists();
     }

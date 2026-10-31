@@ -214,6 +214,7 @@ class PaymentStoreTest extends TestCase
     {
         [$user, $business] = $this->bookkeepingBusiness();
         $cashAccount = $this->cashAccount($business);
+        $this->fundCash($user, $business, $cashAccount, '100.00');
         $fuel = Account::factory()->for($business)->ofType('expense')->create();
 
         $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/payments", $this->paymentPayload($business, [
@@ -227,7 +228,27 @@ class PaymentStoreTest extends TestCase
         $this->assertSame([
             [$fuel->id, null, '45.50', '0.00'],
             [$cashAccount->account_id, null, '0.00', '45.50'],
-        ], $this->lineSummary(JournalEntry::query()->with('lines')->findOrFail(Payment::query()->sole()->journal_entry_id)));
+        ], $this->lineSummary(JournalEntry::query()->with('lines')->findOrFail(Payment::query()->where('direction', 'out')->sole()->journal_entry_id)));
+    }
+
+    public function test_rejects_a_cash_payment_that_would_make_cash_negative_with_422(): void
+    {
+        [$user, $business] = $this->bookkeepingBusiness();
+        $cashAccount = $this->cashAccount($business);
+        $this->fundCash($user, $business, $cashAccount, '30.00');
+        $fuel = Account::factory()->for($business)->ofType('expense')->create();
+
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/payments", $this->paymentPayload($business, [
+            'cash_account_id' => $cashAccount->id,
+            'direction' => 'out',
+            'amount' => '45.50',
+            'offset_account_id' => $fuel->id,
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['lines' => "This would leave the cash account \"{$cashAccount->name}\" at -15.50 on 2026-06-20. Cash on hand cannot be negative, so record the missing cash receipts first."]);
+
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseMissing('journal_entries', ['business_id' => $business->id, 'status' => 'posted', 'entry_date' => '2026-06-20', 'description' => 'Fuel']);
     }
 
     public function test_rejects_using_the_cash_account_itself_as_the_offset_with_422(): void
@@ -264,6 +285,16 @@ class PaymentStoreTest extends TestCase
         return CashAccount::factory()->for($business)->create([
             'account_id' => Account::factory()->for($business)->ofType('asset')->create()->id,
         ]);
+    }
+
+    private function fundCash(User $user, Business $business, CashAccount $cashAccount, string $amount): void
+    {
+        $this->actingAs($user)->postJson("/api/v1/businesses/{$business->id}/payments", $this->paymentPayload($business, [
+            'cash_account_id' => $cashAccount->id,
+            'direction' => 'in',
+            'amount' => $amount,
+            'offset_account_id' => Account::factory()->for($business)->ofType('equity')->create()->id,
+        ]))->assertCreated();
     }
 
     private function bankAccount(Business $business): BankAccount

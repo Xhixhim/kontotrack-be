@@ -14,6 +14,7 @@ use App\Repositories\Contracts\PaymentRepository;
 use App\Services\Accounting\JournalEntryService;
 use App\Services\Accounting\PostingAccountService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Tax\AtkVatBoxes;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -64,8 +65,8 @@ class InvoiceService
     /** @param array<string, mixed> $attributes */
     public function createDraft(Business $business, int $userId, array $attributes): Invoice
     {
-        if ($attributes['kind'] === 'purchase' && $this->invoiceRepository->invoiceNumberExists($business, $attributes['kind'], $attributes['invoice_number'])) {
-            throw ValidationException::withMessages(['invoice_number' => ['This invoice number has already been used for this business.']]);
+        if ($attributes['kind'] === 'purchase' && $this->invoiceRepository->invoiceNumberExists($business, $attributes['kind'], $attributes['invoice_number'], (int) $attributes['counterparty_id'])) {
+            throw ValidationException::withMessages(['invoice_number' => ['This bill number has already been recorded for this supplier.']]);
         }
 
         $counterparty = $business->counterparties()->whereKey($attributes['counterparty_id'])->first();
@@ -157,6 +158,8 @@ class InvoiceService
                     'label' => $taxCode['label'],
                     'rate_percent' => $taxCode['rate_percent'],
                     'treatment' => $taxCode['treatment'],
+                    'atk_sales_box' => $taxCode['atk_sales_box'],
+                    'atk_purchase_box' => $taxCode['atk_purchase_box'],
                 ],
             ];
         }
@@ -537,7 +540,7 @@ class InvoiceService
         ];
     }
 
-    /** @return list<array{code: string, label: string, rate_percent: string, treatment: string}> */
+    /** @return list<array{code: string, label: string, rate_percent: string, treatment: string, atk_sales_box: string|null, atk_purchase_box: string|null}> */
     private function codesFromRuleSet(ComplianceRuleSet $ruleSet): array
     {
         $configuration = $ruleSet->rules->firstWhere('rule_key', 'vat_codes')?->configuration;
@@ -571,11 +574,14 @@ class InvoiceService
             }
 
             $seenCodes[$code['code']] = true;
+            $ratePercent = intdiv($rateScaled, 10_000).'.'.str_pad((string) ($rateScaled % 10_000), 4, '0', STR_PAD_LEFT);
             $normalised[] = [
                 'code' => $code['code'],
                 'label' => $code['label'],
-                'rate_percent' => intdiv($rateScaled, 10_000).'.'.str_pad((string) ($rateScaled % 10_000), 4, '0', STR_PAD_LEFT),
+                'rate_percent' => $ratePercent,
                 'treatment' => $code['treatment'],
+                'atk_sales_box' => isset($code['atk_sales_box']) ? (string) $code['atk_sales_box'] : AtkVatBoxes::defaultSalesBox($code['treatment'], $ratePercent),
+                'atk_purchase_box' => isset($code['atk_purchase_box']) ? (string) $code['atk_purchase_box'] : AtkVatBoxes::defaultPurchaseBox($code['treatment'], $ratePercent),
             ];
         }
 

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\ComplianceRuleSetRepository;
 use App\Services\Payroll\PayrollCalculator;
 use App\Services\Tasks\TaxCalendarGenerator;
+use App\Services\Tax\AtkVatBoxes;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -191,6 +192,12 @@ class ComplianceRuleSetService
 
             if (isset($seenCodes[$code['code']])) {
                 throw ValidationException::withMessages(['rules' => ['VAT code values must be unique.']]);
+            }
+
+            $boxProblems = AtkVatBoxes::problems($code);
+
+            if ($boxProblems !== []) {
+                throw ValidationException::withMessages(['rules' => $boxProblems]);
             }
 
             $seenCodes[$code['code']] = true;

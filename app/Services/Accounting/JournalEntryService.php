@@ -140,6 +140,8 @@ class JournalEntryService
                 throw ValidationException::withMessages(['lines' => ['Total debits must equal total credits.']]);
             }
 
+            $this->ensureCashStaysPositive($business, $entry);
+
             $postedEntry = $this->journalEntryRepository->markPosted($entry, $user);
             $business->auditLogs()->create([
                 'user_id' => $user->getKey(),
@@ -245,6 +247,38 @@ class JournalEntryService
     private function dateIsWithinPeriod(string $date, string $startsOn, string $endsOn): bool
     {
         return $date >= $startsOn && $date <= $endsOn;
+    }
+
+    /** Cash on hand cannot go below zero, so an entry that takes more out of a cash account than it held is refused. */
+    private function ensureCashStaysPositive(Business $business, JournalEntry $entry): void
+    {
+        $movements = [];
+
+        foreach ($entry->lines as $line) {
+            $movements[$line->account_id] = ($movements[$line->account_id] ?? 0) + $this->toCents($line->debit) - $this->toCents($line->credit);
+        }
+
+        $outflows = array_filter($movements, fn (int $cents): bool => $cents < 0);
+
+        if ($outflows === []) {
+            return;
+        }
+
+        $cashAccounts = $business->cashAccounts()
+            ->whereIn('account_id', array_keys($outflows))
+            ->lockForUpdate()
+            ->get(['id', 'account_id', 'name']);
+
+        foreach ($cashAccounts as $cashAccount) {
+            $lowest = $this->journalEntryRepository->lowestPostedBalanceFrom($business, (int) $cashAccount->account_id, $entry->entry_date->toDateString());
+            $balanceAfter = $this->toCents($lowest['balance']) + $outflows[$cashAccount->account_id];
+
+            if ($balanceAfter < 0) {
+                throw ValidationException::withMessages(['lines' => [
+                    "This would leave the cash account \"{$cashAccount->name}\" at -{$this->fromCents(-$balanceAfter)} on {$lowest['date']}. Cash on hand cannot be negative, so record the missing cash receipts first.",
+                ]]);
+            }
+        }
     }
 
     private function toCents(string|int|float $amount): int
