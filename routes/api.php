@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PayrollRunController;
+use App\Http\Controllers\Api\V1\PeriodReopeningController;
 use App\Http\Controllers\Api\V1\PostingAccountController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Models\User;
@@ -273,6 +274,21 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/businesses/{business}/periods', [AccountingPeriodController::class, 'store'])
             ->middleware('can:manageBookkeeping,business');
         Route::post('/businesses/{business}/periods/{period}/close', [AccountingPeriodController::class, 'close'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::get('/businesses/{business}/periods/{period}/reopen-requests', [PeriodReopeningController::class, 'index'])
+            ->whereNumber('period')
+            ->middleware('can:view,business');
+        Route::post('/businesses/{business}/periods/{period}/reopen-requests', [PeriodReopeningController::class, 'store'])
+            ->whereNumber('period')
+            ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/periods/{period}/reopen-requests/{reopenRequest}/approve', [PeriodReopeningController::class, 'approve'])
+            ->whereNumber(['period', 'reopenRequest'])
+            ->middleware('can:approvePeriodReopening,business');
+        Route::post('/businesses/{business}/periods/{period}/reopen-requests/{reopenRequest}/reject', [PeriodReopeningController::class, 'reject'])
+            ->whereNumber(['period', 'reopenRequest'])
+            ->middleware('can:approvePeriodReopening,business');
+        Route::post('/businesses/{business}/periods/{period}/reopen-requests/{reopenRequest}/cancel', [PeriodReopeningController::class, 'cancel'])
+            ->whereNumber(['period', 'reopenRequest'])
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/cash-accounts', [CashAccountController::class, 'index'])
             ->middleware('can:view,business');

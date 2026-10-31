@@ -8,6 +8,7 @@ use App\Models\JournalEntry;
 use App\Models\PayrollRun;
 use App\Models\User;
 use App\Repositories\Contracts\PayrollRepository;
+use App\Support\BlindIndex;
 use Illuminate\Database\Eloquent\Collection;
 
 class EloquentPayrollRepository implements PayrollRepository
@@ -51,7 +52,7 @@ class EloquentPayrollRepository implements PayrollRepository
     public function personalNumberExists(Business $business, string $personalNumber, ?int $exceptEmployeeId = null): bool
     {
         return $business->employees()
-            ->where('personal_number', $personalNumber)
+            ->where('personal_number_hash', BlindIndex::personalNumber((int) $business->getKey(), $personalNumber))
             ->when($exceptEmployeeId !== null, fn ($query) => $query->whereKeyNot($exceptEmployeeId))
             ->exists();
     }

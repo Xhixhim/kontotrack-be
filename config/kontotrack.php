@@ -16,6 +16,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Encrypted employee data
+    |--------------------------------------------------------------------------
+    |
+    | Employee personal numbers and IBANs are encrypted with APP_KEY. A keyed
+    | hash of the personal number (a "blind index") still lets the app find
+    | duplicates. Set a separate, permanent key here so rotating APP_KEY does
+    | not change the hashes; without it APP_KEY is used, and after rotating
+    | APP_KEY (keep the old one in APP_PREVIOUS_KEYS) you must run
+    | php artisan kontotrack:reencrypt-employee-data.
+    |
+    | Backups hold the encrypted values: keep APP_KEY (and this key) safely
+    | outside the backups, or a restored database cannot be read.
+    |
+    */
+
+    'blind_index_key' => env('KONTOTRACK_BLIND_INDEX_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Backups
     |--------------------------------------------------------------------------
     |

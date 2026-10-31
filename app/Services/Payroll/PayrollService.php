@@ -75,8 +75,8 @@ class PayrollService
             $newValues = [];
 
             foreach ($changedAttributes as $attribute) {
-                $oldValues[$attribute] = $this->auditValue($employee->getOriginal($attribute));
-                $newValues[$attribute] = $this->auditValue($employee->getAttribute($attribute));
+                $oldValues[$attribute] = $this->auditValue($attribute, $employee->getOriginal($attribute));
+                $newValues[$attribute] = $this->auditValue($attribute, $employee->getAttribute($attribute));
             }
             $this->payrollRepository->saveEmployee($employee);
             $business->auditLogs()->create([
@@ -304,8 +304,13 @@ class PayrollService
         });
     }
 
-    private function auditValue(mixed $value): mixed
+    /** Personal numbers and IBANs are encrypted at rest, so the audit log keeps only their last 4 characters. */
+    private function auditValue(string $attribute, mixed $value): mixed
     {
+        if (in_array($attribute, ['personal_number', 'iban'], true)) {
+            return $value === null || $value === '' ? $value : '••••'.mb_substr((string) $value, -4);
+        }
+
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
     }
 

@@ -21,6 +21,10 @@ class AccountingPeriodResource extends JsonResource
             'ends_on' => $this->ends_on?->toDateString(),
             'status' => $this->status,
             'closed_at' => $this->closed_at,
+            'reopened_at' => $this->reopened_at?->toISOString(),
+            'pending_reopen_request' => $this->whenLoaded('reopenRequests', fn () => ($pending = $this->reopenRequests->firstWhere('status', 'pending')) === null
+                ? null
+                : (new PeriodReopenRequestResource($pending))->resolve($request)),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Tasks;
 
+use App\Models\PeriodReopenRequest;
 use App\Models\User;
 use App\Repositories\Contracts\DocumentRequestRepository;
 use App\Repositories\Contracts\TaskRepository;
@@ -73,6 +74,26 @@ class NotificationService
                 'business_name' => (string) ($request->business->trade_name ?: $request->business->legal_name),
                 'title' => "Submitted for review: {$request->title}",
                 'due_on' => $request->due_on?->toDateString(),
+                'task_id' => null,
+            ];
+        }
+
+        $ownedBusinessIds = $rolesByBusiness->filter(fn (string $role): bool => $role === 'owner')->keys()->all();
+        $pendingReopenings = $ownedBusinessIds === [] ? collect() : PeriodReopenRequest::query()
+            ->whereIn('business_id', $ownedBusinessIds)
+            ->where('status', 'pending')
+            ->where('requested_by', '!=', $user->getKey())
+            ->with(['business:id,legal_name,trade_name', 'period:id,name', 'requester:id,name'])
+            ->get();
+
+        foreach ($pendingReopenings as $reopening) {
+            $notifications[] = [
+                'type' => 'period_reopen_requested',
+                'severity' => 'warning',
+                'business_id' => (int) $reopening->business_id,
+                'business_name' => (string) ($reopening->business->trade_name ?: $reopening->business->legal_name),
+                'title' => "Approve reopening {$reopening->period->name}? Asked by ".($reopening->requester->name ?? 'a team member').': '.mb_strimwidth((string) $reopening->reason, 0, 120, '…'),
+                'due_on' => null,
                 'task_id' => null,
             ];
         }

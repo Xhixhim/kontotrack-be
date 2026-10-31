@@ -57,6 +57,15 @@ class BusinessPolicy
         return $this->update($user, $business);
     }
 
+    /**
+     * Reopening a closed period changes figures that may already have been filed, so only the
+     * business owner (or a system administrator) can approve it.
+     */
+    public function approvePeriodReopening(User $user, Business $business): bool
+    {
+        return (bool) $user->is_system_admin || $this->manageMembers($user, $business);
+    }
+
     public function viewAuditTrail(User $user, Business $business): bool
     {
         return $business->users()

@@ -51,6 +51,7 @@ class ProductionCheck extends Command
         $this->record(app()->environment('production'), 'Environment', 'APP_ENV is '.app()->environment().'; set it to production.');
         $this->record(! config('app.debug'), 'Debug mode', 'APP_DEBUG must be false so errors do not reveal internals.');
         $this->record(! empty(config('app.key')), 'Application key', 'APP_KEY is missing; run php artisan key:generate.');
+        $this->record(! empty(config('kontotrack.blind_index_key')), 'Employee data hash key', 'Set KONTOTRACK_BLIND_INDEX_KEY to a permanent random value, so rotating APP_KEY keeps duplicate checks working. Store it and APP_KEY outside the backups.', 'warn');
         $this->record(str_starts_with((string) config('app.url'), 'https://'), 'HTTPS address', 'APP_URL should start with https://.');
     }
 

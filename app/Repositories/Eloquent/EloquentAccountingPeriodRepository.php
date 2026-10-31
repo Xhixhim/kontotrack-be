@@ -14,7 +14,10 @@ class EloquentAccountingPeriodRepository implements AccountingPeriodRepository
     /** @return Collection<int, AccountingPeriod> */
     public function listForBusiness(Business $business): Collection
     {
-        return $business->accountingPeriods()->orderBy('starts_on')->get();
+        return $business->accountingPeriods()
+            ->with(['reopenRequests' => fn ($query) => $query->where('status', 'pending')->with('requester:id,name')])
+            ->orderBy('starts_on')
+            ->get();
     }
 
     public function overlaps(Business $business, string $startsOn, string $endsOn): bool
