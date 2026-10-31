@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display timezone
+    |--------------------------------------------------------------------------
+    |
+    | Times are stored in UTC. Printed documents and exports show them in this
+    | timezone. Kosovo uses the IANA zone Europe/Belgrade.
+    |
+    */
+
+    'display_timezone' => env('KONTOTRACK_DISPLAY_TIMEZONE', 'Europe/Belgrade'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Backups
     |--------------------------------------------------------------------------
     |

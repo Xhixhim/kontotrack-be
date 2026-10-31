@@ -157,6 +157,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/reports/financial', [FinancialReportController::class, 'index'])
             ->middleware('can:view,business');
+        Route::get('/businesses/{business}/reports/financial/export', [FinancialReportController::class, 'export'])
+            ->middleware('can:view,business');
         Route::get('/businesses/{business}/atk/vat-books', [AtkExportController::class, 'vatBooks'])
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/atk/vat-books/{book}.xlsx', [AtkExportController::class, 'vatBookFile'])
@@ -176,6 +178,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/businesses/{business}/invoices', [InvoiceController::class, 'index'])
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/invoices/{invoice}', [InvoiceController::class, 'show'])
+            ->whereNumber('invoice')
+            ->middleware('can:view,business');
+        Route::get('/businesses/{business}/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])
             ->whereNumber('invoice')
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/vat-codes', [InvoiceController::class, 'taxCodes'])

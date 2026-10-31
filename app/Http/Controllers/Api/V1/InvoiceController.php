@@ -10,13 +10,15 @@ use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\Business;
 use App\Models\User;
 use App\Services\Invoicing\InvoiceService;
+use App\Services\Reports\DocumentExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private InvoiceService $invoiceService) {}
+    public function __construct(private InvoiceService $invoiceService, private DocumentExportService $exportService) {}
 
     public function index(Request $request, Business $business): AnonymousResourceCollection
     {
@@ -30,6 +32,16 @@ class InvoiceController extends Controller
     public function show(Business $business, int $invoice): InvoiceResource
     {
         return new InvoiceResource($this->invoiceService->findForBusiness($business, $invoice));
+    }
+
+    public function pdf(Business $business, int $invoice): Response
+    {
+        $file = $this->exportService->invoicePdf($business, $this->invoiceService->findForBusiness($business, $invoice));
+
+        return response($file['contents'], 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$file['filename'].'"',
+        ]);
     }
 
     public function taxCodes(Request $request, Business $business): JsonResponse
