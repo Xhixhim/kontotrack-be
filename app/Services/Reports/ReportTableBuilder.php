@@ -19,6 +19,7 @@ class ReportTableBuilder
         'vat_summary' => 'Përmbledhja e TVSH-së · VAT summary',
         'general_ledger' => 'Kartelat e llogarive · Account cards',
         'cash_book' => 'Libri i arkës · Cash book',
+        'bank_reconciliation' => 'Rakordimi bankar dhe diferencat · Bank reconciliation and differences',
     ];
 
     /**
@@ -35,6 +36,7 @@ class ReportTableBuilder
             'vat_summary' => $this->vatSummary($report),
             'general_ledger' => $this->generalLedger($report),
             'cash_book' => [$this->cashBook($report)],
+            'bank_reconciliation' => $this->bankReconciliation($report),
         };
     }
 
@@ -147,6 +149,39 @@ class ReportTableBuilder
                 ...array_map(fn (array $line): array => [$line['date'], $line['reference'] ?? '', trim($line['description'].($line['counterparty_name'] ? ' · '.$line['counterparty_name'] : '')), $line['money_in'], $line['money_out'], $line['balance']], $report['lines']),
             ],
             [[$report['to'], '', 'Gjendja përfundimtare · Closing balance', $report['money_in'], $report['money_out'], $report['closing_balance']]]);
+    }
+
+    /** @param array<string, mixed> $report */
+    private function bankReconciliation(array $report): array
+    {
+        $account = $report['bank_account'];
+        $notOnStatementIn = $report['not_on_statement_in'];
+        $notOnStatementOut = $report['not_on_statement_out'];
+
+        return [
+            $this->section(trim($account['bank_name'].' · '.($account['iban'] ?? '').' · '.($account['ledger_account'] ?? ''), ' ·'), ['', '#Shuma · Amount'], [
+                ['Saldo në libra · Balance in the books', $report['ledger_balance']],
+                ['Shto: arkëtime në bankë të paregjistruara · Add: bank receipts not in the books', $report['unrecorded_in']],
+                ['Zbrit: pagesa në bankë të paregjistruara · Less: bank payments not in the books', $this->negate($report['unrecorded_out'])],
+                ['Zbrit: arkëtime në libra që nuk janë në ekstrakt · Less: receipts in the books not on the statement', $this->negate($notOnStatementIn)],
+                ['Shto: pagesa në libra që nuk janë në ekstrakt · Add: payments in the books not on the statement', $notOnStatementOut],
+            ], [
+                ['Saldo e pritur në ekstrakt · Expected statement balance', $report['expected_statement_balance']],
+                ['Saldo sipas ekstraktit · Statement balance', $report['statement_balance'] ?? ''],
+                ['Diferenca · Difference', $report['difference'] ?? ''],
+            ]),
+            $this->section('Transaksione bankare të paregjistruara · Bank lines not in the books', ['Data · Date', 'Referenca · Reference', 'Përshkrimi · Description', 'Kategoria · Category', '#Shuma · Amount'],
+                $report['unrecorded'] === [] ? [['', '', 'Asnjë · None', '', null]] : array_map(fn (array $line): array => [$line['date'], $line['external_id'] ?? '', $line['description'], trim(($line['category_label'] ?? '').($line['booked_against'] ? ' · '.$line['booked_against'] : '')), $line['amount']], $report['unrecorded']),
+                []),
+            $this->section('Regjistrime në libra që nuk janë në ekstrakt · Book entries not on the statement', ['Data · Date', 'Referenca · Reference', 'Përshkrimi · Description', '#Shuma · Amount'],
+                $report['not_on_statement'] === [] ? [['', '', 'Asnjë · None', null]] : array_map(fn (array $line): array => [$line['entry_date'], $line['reference'] ?? '', $line['description'], $line['amount']], $report['not_on_statement']),
+                []),
+        ];
+    }
+
+    private function negate(string $amount): string
+    {
+        return $amount === '0.00' ? $amount : $this->subtract('0.00', $amount);
     }
 
     /**

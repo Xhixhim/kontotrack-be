@@ -81,6 +81,12 @@ class Business extends Model
         return $this->hasMany(BankAccount::class);
     }
 
+    /** @return HasMany<BankCategorizationRule, $this> */
+    public function bankCategorizationRules(): HasMany
+    {
+        return $this->hasMany(BankCategorizationRule::class);
+    }
+
     /** @return HasMany<Payment, $this> */
     public function payments(): HasMany
     {

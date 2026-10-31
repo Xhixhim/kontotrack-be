@@ -33,6 +33,7 @@ class BankTransactionService
         'money_in' => ['credit', 'kredi', 'hyrje', 'hyrjet', 'deposit', 'deposits', 'money in', 'paid in'],
         'money_out' => ['debit', 'debi', 'dalje', 'daljet', 'withdrawal', 'withdrawals', 'money out', 'paid out'],
         'external_id' => ['external_id', 'external id', 'transaction id', 'id e transaksionit'],
+        'balance' => ['saldo', 'balance', 'gjendja', 'running balance', 'saldo pas transaksionit', 'bilanci'],
     ];
 
     public function __construct(
@@ -41,6 +42,7 @@ class BankTransactionService
         private JournalEntryRepository $journalEntryRepository,
         private DocumentService $documentService,
         private SimpleXlsxReader $xlsxReader,
+        private BankCategorizationService $categorizationService,
     ) {}
 
     /** @return LengthAwarePaginator<int, BankTransaction> */
@@ -51,7 +53,7 @@ class BankTransactionService
         );
     }
 
-    /** @return array{document_id: int, transactions: Collection<int, BankTransaction>} */
+    /** @return array{document_id: int, transactions: Collection<int, BankTransaction>, matched_count: int, suggested_count: int} */
     public function importStatement(Business $business, User $user, int $bankAccountId, UploadedFile $file): array
     {
         $bankAccount = $this->bankAccountRepository->findForBusiness($business, $bankAccountId);
@@ -60,6 +62,10 @@ class BankTransactionService
         }
 
         $rows = $this->parseStatement($file);
+        // Some banks list the newest line first; store lines oldest first so the last one carries the closing balance.
+        if (count($rows) > 1 && $rows[0]['transaction_date'] > $rows[count($rows) - 1]['transaction_date']) {
+            $rows = array_reverse($rows);
+        }
         $externalIds = array_values(array_filter(array_column($rows, 'external_id')));
         if (count($externalIds) !== count(array_unique($externalIds))) {
             throw ValidationException::withMessages(['file' => ['The statement contains duplicate external IDs.']]);
@@ -74,26 +80,81 @@ class BankTransactionService
         $attributes = array_map(fn (array $row): array => [
             ...$row,
             'business_id' => $business->getKey(),
+            'source' => 'import',
             'currency' => $bankAccount->currency,
             'document_id' => $document->getKey(),
             'journal_entry_id' => null,
             'is_reconciled' => false,
         ], $rows);
 
-        $transactions = DB::transaction(function () use ($business, $user, $bankAccount, $attributes, $document): Collection {
+        return DB::transaction(function () use ($business, $user, $bankAccount, $attributes, $document): array {
             $transactions = $this->bankTransactionRepository->createImported($bankAccount, $attributes);
+            $matched = $this->matchWithLedger($business, $user, $bankAccount, $transactions);
+            $suggested = $this->categorizationService->applyRules($business, $bankAccount, $transactions->reject(fn (BankTransaction $transaction): bool => $transaction->is_reconciled));
             $business->auditLogs()->create([
                 'user_id' => $user->getKey(),
                 'action' => 'bank_statement.imported',
                 'subject_type' => BankAccount::class,
                 'subject_id' => $bankAccount->getKey(),
-                'new_values' => ['document_id' => $document->getKey(), 'transaction_count' => $transactions->count()],
+                'new_values' => ['document_id' => $document->getKey(), 'transaction_count' => $transactions->count(), 'matched_count' => $matched, 'suggested_count' => $suggested],
             ]);
 
-            return $transactions;
+            return [
+                'document_id' => (int) $document->getKey(),
+                'transactions' => $transactions->each(fn (BankTransaction $transaction) => $transaction->refresh())->load(['journalEntry', 'document', 'account', 'counterparty']),
+                'matched_count' => $matched,
+                'suggested_count' => $suggested,
+            ];
         });
+    }
 
-        return ['document_id' => (int) $document->getKey(), 'transactions' => $transactions];
+    /**
+     * Reconciles imported lines that have exactly one posted journal entry on the same date with the
+     * same movement on the bank's ledger account (and no other imported line competing for it), such as
+     * a payment that was already recorded in the books before the statement arrived.
+     *
+     * @param  Collection<int, BankTransaction>  $transactions
+     */
+    private function matchWithLedger(Business $business, User $user, BankAccount $bankAccount, Collection $transactions): int
+    {
+        if ($transactions->isEmpty() || $bankAccount->account_id === null) {
+            return 0;
+        }
+
+        $movements = collect($this->bankTransactionRepository->ledgerMovements(
+            $business, $bankAccount, (string) $transactions->min(fn ($t) => $t->transaction_date->toDateString()), (string) $transactions->max(fn ($t) => $t->transaction_date->toDateString()), true,
+        ));
+        $key = fn (string $date, string $amount): string => $date.'|'.number_format((float) $amount, 2, '.', '');
+        $movementsByKey = $movements->groupBy(fn (array $movement): string => $key($movement['entry_date'], $movement['amount']));
+        $linesByKey = $transactions->groupBy(fn (BankTransaction $transaction): string => $key($transaction->transaction_date->toDateString(), (string) $transaction->amount));
+        $matched = 0;
+
+        foreach ($linesByKey as $lineKey => $lines) {
+            $candidates = $movementsByKey->get($lineKey);
+            if ($lines->count() !== 1 || $candidates === null || $candidates->count() !== 1) {
+                continue;
+            }
+
+            $line = $lines->first();
+            $entryId = (int) $candidates->first()['journal_entry_id'];
+            if ($this->bankTransactionRepository->hasOtherTransactionForJournalEntry($business, $entryId, (int) $line->getKey())
+                && ! $this->bankTransactionRepository->replacePaymentLine($line, $entryId)) {
+                continue;
+            }
+
+            $this->bankTransactionRepository->markReconciled($line, $this->journalEntryRepository->findForPosting($business, $entryId));
+            $business->auditLogs()->create([
+                'user_id' => $user->getKey(),
+                'action' => 'bank_transaction.reconciled',
+                'subject_type' => BankTransaction::class,
+                'subject_id' => $line->getKey(),
+                'old_values' => ['is_reconciled' => false, 'journal_entry_id' => null],
+                'new_values' => ['is_reconciled' => true, 'journal_entry_id' => $entryId, 'matched_automatically' => true],
+            ]);
+            $matched++;
+        }
+
+        return $matched;
     }
 
     public function reconcile(Business $business, User $user, int $bankAccountId, int $transactionId, ?int $journalEntryId): BankTransaction
@@ -118,7 +179,8 @@ class BankTransactionService
             if ($entry->status !== 'posted' || $entry->entry_date->toDateString() !== $transaction->transaction_date->toDateString()) {
                 throw ValidationException::withMessages(['journal_entry_id' => ['Choose a posted journal entry dated on the bank transaction date.']]);
             }
-            if ($this->bankTransactionRepository->hasOtherTransactionForJournalEntry($business, $entryId, $transactionId)) {
+            if ($this->bankTransactionRepository->hasOtherTransactionForJournalEntry($business, $entryId, $transactionId)
+                && ($transaction->source !== 'import' || ! $this->bankTransactionRepository->replacePaymentLine($transaction, $entryId))) {
                 throw ValidationException::withMessages(['journal_entry_id' => ['This journal entry is already linked to another bank transaction.']]);
             }
 
@@ -144,7 +206,7 @@ class BankTransactionService
         });
     }
 
-    /** @return list<array{transaction_date: string, external_id: ?string, description: string, amount: string}> */
+    /** @return list<array{transaction_date: string, external_id: ?string, description: string, amount: string, balance_after: ?string}> */
     private function parseStatement(UploadedFile $file): array
     {
         $isWorkbook = strtolower($file->getClientOriginalExtension()) === 'xlsx';
@@ -178,12 +240,16 @@ class BankTransactionService
             $description = $this->cellText($cell('description'));
             $externalId = $this->cellText($cell('external_id'));
             $amount = isset($columns['amount']) ? $this->cellAmount($cell('amount')) : $this->debitCreditAmount($cell('money_in'), $cell('money_out'));
+            $balance = $this->isBlank($cell('balance')) ? null : $this->cellAmount($cell('balance'));
 
             if ($date === null || $description === '' || mb_strlen($description) > 255 || $amount === null || $amount === '0.00' || mb_strlen($externalId) > 160) {
                 throw ValidationException::withMessages(['file' => ["Statement row {$line} has an invalid date, description, amount, or external ID."]]);
             }
+            if (! $this->isBlank($cell('balance')) && $balance === null) {
+                throw ValidationException::withMessages(['file' => ["Statement row {$line} has an invalid balance."]]);
+            }
 
-            $transactions[] = ['transaction_date' => $date, 'external_id' => $externalId === '' ? null : $externalId, 'description' => $description, 'amount' => $amount];
+            $transactions[] = ['transaction_date' => $date, 'external_id' => $externalId === '' ? null : $externalId, 'description' => $description, 'amount' => $amount, 'balance_after' => $balance];
         }
 
         if ($transactions === []) {

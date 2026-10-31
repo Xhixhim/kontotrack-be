@@ -29,4 +29,19 @@ interface BankTransactionRepository
     public function hasOtherTransactionForJournalEntry(Business $business, int $journalEntryId, int $transactionId): bool;
 
     public function markReconciled(BankTransaction $transaction, JournalEntry $entry): BankTransaction;
+
+    /**
+     * Posted journal entries that move the bank account's ledger account, with their net movement
+     * (debit minus credit) on it. With $onlyUnmatched, entries already reconciled with an imported
+     * statement line are left out.
+     *
+     * @return list<array{journal_entry_id: int, entry_date: string, reference: string|null, description: string, amount: string}>
+     */
+    public function ledgerMovements(Business $business, BankAccount $bankAccount, ?string $from, string $to, bool $onlyUnmatched): array;
+
+    /**
+     * When a payment recorded in the books already created a bank line for this journal entry,
+     * the imported statement line replaces it: the payment points at the statement line instead.
+     */
+    public function replacePaymentLine(BankTransaction $statementLine, int $journalEntryId): bool;
 }

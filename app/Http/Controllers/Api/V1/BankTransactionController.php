@@ -29,7 +29,7 @@ class BankTransactionController extends Controller
 
         return response()->json([
             'data' => $result['transactions']->map(fn ($transaction) => (new BankTransactionResource($transaction))->resolve($request))->all(),
-            'meta' => ['document_id' => $result['document_id'], 'imported_count' => $result['transactions']->count()],
+            'meta' => ['document_id' => $result['document_id'], 'imported_count' => $result['transactions']->count(), 'matched_count' => $result['matched_count'], 'suggested_count' => $result['suggested_count']],
         ], 201);
     }
 

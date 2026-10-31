@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AccountingPeriodController;
 use App\Http\Controllers\Api\V1\AtkExportController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BankAccountController;
+use App\Http\Controllers\Api\V1\BankCategorizationController;
 use App\Http\Controllers\Api\V1\BankTransactionController;
 use App\Http\Controllers\Api\V1\BusinessControlController;
 use App\Http\Controllers\Api\V1\BusinessController;
@@ -286,6 +287,27 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/businesses/{business}/bank-accounts/{bankAccount}/statement-import', [BankTransactionController::class, 'import'])
             ->middleware('can:manageBookkeeping,business');
         Route::post('/businesses/{business}/bank-accounts/{bankAccount}/transactions/{transaction}/reconcile', [BankTransactionController::class, 'reconcile'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::put('/businesses/{business}/bank-accounts/{bankAccount}/transactions/{transaction}/category', [BankCategorizationController::class, 'categorize'])
+            ->whereNumber(['bankAccount', 'transaction'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/bank-accounts/{bankAccount}/transactions/{transaction}/book', [BankCategorizationController::class, 'book'])
+            ->whereNumber(['bankAccount', 'transaction'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/bank-accounts/{bankAccount}/apply-rules', [BankCategorizationController::class, 'applyRules'])
+            ->whereNumber('bankAccount')
+            ->middleware('can:manageBookkeeping,business');
+        Route::get('/businesses/{business}/bank-categories', [BankCategorizationController::class, 'categories'])
+            ->middleware('can:view,business');
+        Route::get('/businesses/{business}/bank-rules', [BankCategorizationController::class, 'rules'])
+            ->middleware('can:view,business');
+        Route::post('/businesses/{business}/bank-rules', [BankCategorizationController::class, 'storeRule'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::put('/businesses/{business}/bank-rules/{rule}', [BankCategorizationController::class, 'updateRule'])
+            ->whereNumber('rule')
+            ->middleware('can:manageBookkeeping,business');
+        Route::delete('/businesses/{business}/bank-rules/{rule}', [BankCategorizationController::class, 'destroyRule'])
+            ->whereNumber('rule')
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/payments', [PaymentController::class, 'index'])
             ->middleware('can:view,business');

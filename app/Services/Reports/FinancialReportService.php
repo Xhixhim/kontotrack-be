@@ -8,10 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class FinancialReportService
 {
-    public function __construct(private FinancialReportRepository $financialReportRepository) {}
+    public function __construct(private FinancialReportRepository $financialReportRepository, private BankReconciliationReportService $bankReconciliationReport) {}
 
     /**
-     * @param  array{account_id?: int|null, cash_account_id?: int|null}  $options
+     * @param  array{account_id?: int|null, cash_account_id?: int|null, bank_account_id?: int|null, statement_balance?: string|null}  $options
      * @return array<string, mixed>
      */
     public function generate(Business $business, string $type, string $from, string $to, array $options = []): array
@@ -30,6 +30,10 @@ class FinancialReportService
                 'currency' => $business->currency,
                 'accounts' => $this->financialReportRepository->generalLedger($business, $accountId === null ? null : [$accountId], $from, $to),
             ];
+        }
+
+        if ($type === 'bank_reconciliation') {
+            return $this->bankReconciliationReport->generate($business, (int) ($options['bank_account_id'] ?? 0), $to, $options['statement_balance'] ?? null);
         }
 
         if ($type === 'cash_book') {

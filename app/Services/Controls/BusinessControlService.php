@@ -5,12 +5,14 @@ namespace App\Services\Controls;
 use App\Models\Business;
 use App\Repositories\Contracts\BusinessControlRepository;
 use App\Repositories\Contracts\ComplianceRuleSetRepository;
+use App\Services\Reports\BankReconciliationReportService;
 
 class BusinessControlService
 {
     public function __construct(
         private BusinessControlRepository $controlRepository,
         private ComplianceRuleSetRepository $complianceRuleSetRepository,
+        private BankReconciliationReportService $bankReconciliationReport,
     ) {}
 
     /**
@@ -32,6 +34,7 @@ class BusinessControlService
             $this->overdueCheck('overdue_payables', 'Overdue supplier bills', $data['overdue_payables'], 'supplier bill(s) are past due'),
             $this->staleDraftsCheck($data['stale_draft_count'], $data['stale_drafts']),
             $this->bankReconciliationCheck($data['old_unreconciled_bank_transactions']),
+            $this->bankDifferencesCheck($business, $today),
             $this->lowStockCheck($data['low_stock_items']),
             $this->journalSourceCheck($data['journal_entries_without_source']),
             $this->vatThresholdCheck($business, $today, $data['sales_net_this_year']),
@@ -47,6 +50,36 @@ class BusinessControlService
         }
 
         return ['as_of' => $today, 'summary' => $summary, 'checks' => $checks];
+    }
+
+    /**
+     * Compares each bank account's books with its latest imported statement balance.
+     *
+     * @return array{key: string, label: string, severity: string, detail: string, items: list<array<string, mixed>>}
+     */
+    private function bankDifferencesCheck(Business $business, string $today): array
+    {
+        $differences = [];
+        $compared = 0;
+
+        foreach ($business->bankAccounts()->where('is_active', true)->whereNotNull('account_id')->whereHas('transactions', fn ($query) => $query->where('source', 'import'))->get() as $bankAccount) {
+            $report = $this->bankReconciliationReport->generate($business, (int) $bankAccount->getKey(), $today);
+            if ($report['difference'] === null) {
+                continue;
+            }
+            $compared++;
+            if ($report['difference'] !== '0.00') {
+                $differences[] = ['bank_account_id' => $bankAccount->getKey(), 'bank_name' => $bankAccount->bank_name, 'difference' => $report['difference'], 'statement_balance' => $report['statement_balance'], 'expected_statement_balance' => $report['expected_statement_balance']];
+            }
+        }
+
+        if ($compared === 0) {
+            return $this->check('bank_differences', 'Bank differences', 'info', 'Import a bank statement with a balance (Saldo) column to compare the books with the bank.');
+        }
+
+        return $differences === []
+            ? $this->check('bank_differences', 'Bank differences', 'ok', 'The books agree with the latest bank statement balance, after open items.')
+            : $this->check('bank_differences', 'Bank differences', 'warning', count($differences).' bank account(s) do not agree with the statement balance after open items. Open the bank reconciliation report to find the difference.', $differences);
     }
 
     /** @return array{key: string, label: string, severity: string, detail: string, items: list<array<string, mixed>>} */

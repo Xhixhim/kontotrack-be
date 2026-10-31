@@ -35,19 +35,22 @@ class FinancialReportController extends Controller
         ]);
     }
 
-    /** @return array{string, string, string, array{account_id: int|null, cash_account_id: int|null}} */
+    /** @return array{string, string, string, array{account_id: int|null, cash_account_id: int|null, bank_account_id: int|null, statement_balance: string|null}} */
     private function filters(Request $request): array
     {
         $filters = $request->validate([
-            'type' => ['required', 'string', 'in:trial_balance,profit_loss,balance_sheet,receivable_aging,payable_aging,vat_summary,general_ledger,cash_book'],
+            'type' => ['required', 'string', 'in:trial_balance,profit_loss,balance_sheet,receivable_aging,payable_aging,vat_summary,general_ledger,cash_book,bank_reconciliation'],
             'account_id' => ['nullable', 'integer'],
             'cash_account_id' => ['nullable', 'integer', 'required_if:type,cash_book'],
+            'bank_account_id' => ['nullable', 'integer', 'required_if:type,bank_reconciliation'],
+            // The closing balance printed on the bank statement, when the imported file had no balance column.
+            'statement_balance' => ['nullable', 'numeric', 'decimal:0,2', 'min:-99999999999999.99', 'max:99999999999999.99'],
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
         ]);
         $to = CarbonImmutable::parse($filters['to'] ?? today())->toDateString();
         $from = CarbonImmutable::parse($filters['from'] ?? CarbonImmutable::parse($to)->startOfMonth())->toDateString();
-        $isAgingReport = in_array($filters['type'], ['receivable_aging', 'payable_aging'], true);
+        $isAgingReport = in_array($filters['type'], ['receivable_aging', 'payable_aging', 'bank_reconciliation'], true);
 
         if (! $isAgingReport && $from > $to) {
             throw ValidationException::withMessages(['from' => ['The start date must not be after the end date.']]);
@@ -56,6 +59,8 @@ class FinancialReportController extends Controller
         return [$filters['type'], $from, $to, [
             'account_id' => isset($filters['account_id']) ? (int) $filters['account_id'] : null,
             'cash_account_id' => isset($filters['cash_account_id']) ? (int) $filters['cash_account_id'] : null,
+            'bank_account_id' => isset($filters['bank_account_id']) ? (int) $filters['bank_account_id'] : null,
+            'statement_balance' => isset($filters['statement_balance']) ? (string) $filters['statement_balance'] : null,
         ]];
     }
 }

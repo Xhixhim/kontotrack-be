@@ -2,8 +2,10 @@
 
 namespace App\Services\Accounting;
 
+use App\Models\BankAccount;
 use App\Models\Business;
 use App\Models\Invoice;
+use App\Models\JournalEntry;
 use App\Models\Payment;
 use App\Models\User;
 use App\Repositories\Contracts\InvoiceRepository;
@@ -109,17 +111,19 @@ class PaymentService
 
             if (isset($bankAccount)) {
                 $signedAmount = $attributes['direction'] === 'in' ? $amountCents : -$amountCents;
-                $bankTransaction = $bankAccount->transactions()->create([
-                    'business_id' => $business->getKey(),
-                    'journal_entry_id' => $entry->getKey(),
-                    'transaction_date' => $attributes['paid_on'],
-                    'description' => $attributes['reference'] ?? $entry->description,
-                    'amount' => $this->fromCents($signedAmount),
-                    'currency' => $business->currency,
-                    'document_id' => $document->getKey(),
-                    'is_reconciled' => false,
-                ]);
-                $bankTransactionId = (int) $bankTransaction->getKey();
+                $bankTransactionId = isset($attributes['bank_transaction_id'])
+                    ? $this->reconcileStatementLine($bankAccount, (int) $attributes['bank_transaction_id'], $entry, $signedAmount, $attributes['paid_on'])
+                    : (int) $bankAccount->transactions()->create([
+                        'business_id' => $business->getKey(),
+                        'source' => 'payment',
+                        'journal_entry_id' => $entry->getKey(),
+                        'transaction_date' => $attributes['paid_on'],
+                        'description' => $attributes['reference'] ?? $entry->description,
+                        'amount' => $this->fromCents($signedAmount),
+                        'currency' => $business->currency,
+                        'document_id' => $document->getKey(),
+                        'is_reconciled' => false,
+                    ])->getKey();
             }
 
             $payment = $this->paymentRepository->createForBusiness($business, [
@@ -280,6 +284,24 @@ class PaymentService
         ]);
 
         return (int) $this->journalEntryService->post($business, $user, (int) $journalEntry->getKey())->getKey();
+    }
+
+    /**
+     * A payment recorded from an imported bank statement line uses that line instead of creating
+     * a second one, and reconciles it with the new journal entry.
+     */
+    private function reconcileStatementLine(BankAccount $bankAccount, int $transactionId, JournalEntry $entry, int $signedAmountCents, string $paidOn): int
+    {
+        $transaction = $bankAccount->transactions()->whereKey($transactionId)->lockForUpdate()->first();
+
+        if ($transaction === null || $transaction->source !== 'import' || $transaction->is_reconciled
+            || $this->toCents((string) $transaction->amount) !== $signedAmountCents || $transaction->transaction_date->toDateString() !== $paidOn) {
+            throw ValidationException::withMessages(['bank_transaction_id' => ['This bank statement line is already booked, or its amount and date do not match the payment.']]);
+        }
+
+        $transaction->forceFill(['journal_entry_id' => $entry->getKey(), 'is_reconciled' => true, 'reconciled_at' => now()])->save();
+
+        return (int) $transaction->getKey();
     }
 
     /** @param list<array{invoice_id: int|string, amount: string|int|float}> $allocations */

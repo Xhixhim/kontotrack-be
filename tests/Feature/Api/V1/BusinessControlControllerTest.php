@@ -58,7 +58,8 @@ class BusinessControlControllerTest extends TestCase
         $this->assertSame('warning', $this->severity($response, 'vat_status'));
         $this->assertSame('warning', $this->severity($response, 'posting_accounts'));
         $this->assertSame('info', $this->severity($response, 'vat_threshold'));
-        $response->assertJsonPath('data.summary', ['critical' => 0, 'warning' => 2, 'ok' => 14, 'info' => 1])
+        $this->assertSame('info', $this->severity($response, 'bank_differences'));
+        $response->assertJsonPath('data.summary', ['critical' => 0, 'warning' => 2, 'ok' => 14, 'info' => 2])
             ->assertJsonPath('data.as_of', '2026-07-20');
     }
 
