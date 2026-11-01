@@ -23,7 +23,12 @@ interface BusinessDashboardRepository
      *     receivable_invoices: int,
      *     payables: string,
      *     overdue_payables: string,
-     *     payable_invoices: int
+     *     payable_invoices: int,
+     *     payroll_gross: string,
+     *     payroll_employees: int,
+     *     payroll_status: string|null,
+     *     stock_value: string,
+     *     stock_items: int
      * }
      */
     public function summaryForBusiness(Business $business, string $from, string $to): array;

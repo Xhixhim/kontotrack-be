@@ -140,7 +140,68 @@ class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
             'payables' => $this->fromCents($payablesCents),
             'overdue_payables' => $this->fromCents($overduePayablesCents),
             'payable_invoices' => $payableInvoices,
+            ...$this->payrollSummary($businessId, $from, $to),
+            ...$this->stockSummary($businessId, $to),
         ];
+    }
+
+    /**
+     * Payroll runs whose pay month falls in the period: gross total, employees paid, and whether all runs are approved.
+     *
+     * @return array{payroll_gross: string, payroll_employees: int, payroll_status: string|null}
+     */
+    private function payrollSummary(int $businessId, string $from, string $to): array
+    {
+        $fromKey = ((int) substr($from, 0, 4) * 100) + (int) substr($from, 5, 2);
+        $toKey = ((int) substr($to, 0, 4) * 100) + (int) substr($to, 5, 2);
+        $runs = DB::table('payroll_runs')
+            ->where('business_id', $businessId)
+            ->whereRaw('(period_year * 100 + period_month) BETWEEN ? AND ?', [$fromKey, $toKey])
+            ->get(['id', 'status', 'gross_total']);
+
+        if ($runs->isEmpty()) {
+            return ['payroll_gross' => '0.00', 'payroll_employees' => 0, 'payroll_status' => null];
+        }
+
+        $employees = DB::table('payroll_lines')
+            ->where('business_id', $businessId)
+            ->whereIn('payroll_run_id', $runs->pluck('id')->all())
+            ->distinct()
+            ->count('employee_id');
+
+        return [
+            'payroll_gross' => $this->fromCents($runs->sum(fn (object $run): int => $this->toCents((string) $run->gross_total))),
+            'payroll_employees' => $employees,
+            'payroll_status' => $runs->contains(fn (object $run): bool => $run->status === 'draft') ? 'draft' : 'approved',
+        ];
+    }
+
+    /**
+     * Stock on hand at the end of the period, valued at each item's purchase price.
+     *
+     * @return array{stock_value: string, stock_items: int}
+     */
+    private function stockSummary(int $businessId, string $to): array
+    {
+        $quantities = DB::table('stock_movements as movements')
+            ->join('inventory_items as items', function ($join): void {
+                $join->on('items.id', '=', 'movements.inventory_item_id')
+                    ->on('items.business_id', '=', 'movements.business_id');
+            })
+            ->where('movements.business_id', $businessId)
+            ->whereDate('movements.occurred_on', '<=', $to)
+            ->groupBy('items.id', 'items.purchase_price')
+            ->havingRaw('SUM(movements.quantity_delta) > 0')
+            ->selectRaw('items.purchase_price, SUM(movements.quantity_delta) AS on_hand')
+            ->get();
+
+        // A display figure, not a ledger amount: each item's quantity × price is rounded to cents, then summed.
+        $valueCents = 0;
+        foreach ($quantities as $row) {
+            $valueCents += (int) round((float) $row->on_hand * (float) $row->purchase_price * 100);
+        }
+
+        return ['stock_value' => $this->fromCents($valueCents), 'stock_items' => $quantities->count()];
     }
 
     /** @param list<int> $accountIds */

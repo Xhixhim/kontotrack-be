@@ -27,6 +27,8 @@ class BusinessDashboardController extends Controller
             throw ValidationException::withMessages(['from' => ['The start date must not be after the end date.']]);
         }
 
-        return response()->json(['data' => $this->dashboardService->summaryForBusiness($business, $from, $to)]);
+        $includePayroll = $request->user()?->can('viewPayroll', $business) === true;
+
+        return response()->json(['data' => $this->dashboardService->summaryForBusiness($business, $from, $to, $includePayroll)]);
     }
 }
