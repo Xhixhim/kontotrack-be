@@ -25,7 +25,8 @@ return new class extends Migration
             $table->timestamps();
             $table->foreign(['account_id', 'business_id'])->references(['id', 'business_id'])->on('accounts')->restrictOnDelete();
             $table->foreign(['counterparty_id', 'business_id'])->references(['id', 'business_id'])->on('counterparties')->restrictOnDelete();
-            $table->unique(['business_id', 'match_text', 'direction']);
+            // Explicit name: the generated one is 65 chars, over MySQL's 64-char identifier limit.
+            $table->unique(['business_id', 'match_text', 'direction'], 'bank_cat_rules_business_match_direction_unique');
             $table->unique(['id', 'business_id']);
         });
 
