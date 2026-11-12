@@ -59,7 +59,7 @@ class BusinessControlControllerTest extends TestCase
         $this->assertSame('warning', $this->severity($response, 'posting_accounts'));
         $this->assertSame('info', $this->severity($response, 'vat_threshold'));
         $this->assertSame('info', $this->severity($response, 'bank_differences'));
-        $response->assertJsonPath('data.summary', ['critical' => 0, 'warning' => 2, 'ok' => 14, 'info' => 2])
+        $response->assertJsonPath('data.summary', ['critical' => 0, 'warning' => 2, 'ok' => 15, 'info' => 2])
             ->assertJsonPath('data.as_of', '2026-07-20');
     }
 
@@ -283,6 +283,25 @@ class BusinessControlControllerTest extends TestCase
     }
 
     /** @return list<array<string, mixed>> */
+    public function test_flags_identifiers_with_the_wrong_format(): void
+    {
+        [$user, $business] = $this->bookkeepingBusiness();
+        $wrong = Counterparty::factory()->for($business)->customer()->create(['name' => 'Numër i shkurtër', 'nui' => '81100']);
+        Counterparty::factory()->for($business)->customer()->create(['nui' => '811000222']);
+        Counterparty::factory()->for($business)->customer()->create(['nui' => '1234567890']);
+        Counterparty::factory()->for($business)->supplier()->create(['nui' => 'DE123456789', 'country_code' => 'DE']);
+        Counterparty::factory()->for($business)->customer()->create(['nui' => 'abc', 'status' => 'inactive']);
+
+        $response = $this->actingAs($user)->getJson("/api/v1/businesses/{$business->id}/controls")->assertOk();
+
+        $this->assertSame('warning', $this->severity($response, 'identifier_format'));
+        $this->assertSame([['id' => $wrong->id, 'name' => 'Numër i shkurtër', 'nui' => '81100']], $this->items($response, 'identifier_format'));
+
+        $business->forceFill(['nui' => '12345'])->save();
+        $response = $this->actingAs($user)->getJson("/api/v1/businesses/{$business->id}/controls")->assertOk();
+        $this->assertSame('critical', $this->severity($response, 'identifier_format'));
+    }
+
     private function items(TestResponse $response, string $key): array
     {
         return collect($response->json('data.checks'))->firstWhere('key', $key)['items'];

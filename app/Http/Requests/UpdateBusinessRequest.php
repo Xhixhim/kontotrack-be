@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\KosovoIdentifier;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +26,7 @@ class UpdateBusinessRequest extends FormRequest
         return [
             'legal_name' => ['sometimes', 'required', 'string', 'max:255'],
             'trade_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'nui' => ['sometimes', 'required', 'string', 'max:32', Rule::unique('businesses', 'nui')->ignore($this->route('business'))],
+            'nui' => ['sometimes', 'required', 'string', 'regex:'.KosovoIdentifier::BUSINESS_PATTERN, Rule::unique('businesses', 'nui')->ignore($this->route('business'))],
             'legal_form' => ['sometimes', 'nullable', 'string', 'max:40'],
             'owner_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'vat_status' => ['sometimes', 'required', 'string', 'in:unknown,registered,not_registered'],
@@ -36,5 +37,13 @@ class UpdateBusinessRequest extends FormRequest
             'activity_code' => ['sometimes', 'nullable', 'string', 'max:32'],
             'registered_at' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['nui.regex' => 'The NUI has 9 digits, as printed on the business registration certificate.'];
     }
 }

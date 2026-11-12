@@ -20,7 +20,7 @@ class BusinessFactory extends Factory
         return [
             'legal_name' => fake()->company(),
             'trade_name' => fake()->optional()->companySuffix(),
-            'nui' => fake()->unique()->numerify('##########'),
+            'nui' => fake()->unique()->numerify('81#######'),
             'legal_form' => fake()->randomElement(['BI', 'SHPK', 'SH.A.']),
             'vat_status' => 'unknown',
             'municipality' => fake()->city(),

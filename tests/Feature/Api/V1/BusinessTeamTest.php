@@ -34,6 +34,15 @@ class BusinessTeamTest extends TestCase
             ->assertJsonValidationErrors('nui');
     }
 
+    public function test_rejects_a_nui_that_is_not_9_digits_with_422(): void
+    {
+        foreach (['81199900', '8119990001', '81199900A'] as $nui) {
+            $this->actingAs(User::factory()->create())->postJson('/api/v1/businesses', ['legal_name' => 'Kafe Drini B.I.', 'nui' => $nui, 'vat_status' => 'unknown'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['nui' => 'The NUI has 9 digits, as printed on the business registration certificate.']);
+        }
+    }
+
     public function test_owner_invites_an_accountant_who_accepts_and_gains_access(): void
     {
         [$owner, $business] = $this->ownedBusiness();

@@ -125,4 +125,34 @@ class CounterpartyUpdateTest extends TestCase
 
         $this->assertSame('Kept', $customer->refresh()->name);
     }
+
+    public function test_rejects_identifiers_that_are_not_a_kosovo_business_or_personal_number_with_422(): void
+    {
+        [$user, $business] = $this->bookkeepingBusiness();
+        $base = "/api/v1/businesses/{$business->id}/counterparties";
+
+        foreach (['81100', '81100022A', '12345678901'] as $identifier) {
+            $this->actingAs($user)->postJson($base, ['type' => 'customer', 'name' => 'Klient', 'nui' => $identifier])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('nui');
+        }
+
+        $this->actingAs($user)->postJson($base, ['type' => 'customer', 'name' => 'Biznes', 'nui' => '811000222'])->assertCreated();
+        $this->actingAs($user)->postJson($base, ['type' => 'customer', 'name' => 'Individ', 'nui' => '1234567890'])->assertCreated();
+        $this->actingAs($user)->postJson($base, ['type' => 'customer', 'name' => 'Pa numër'])->assertCreated();
+        $this->actingAs($user)->postJson($base, ['type' => 'supplier', 'name' => 'Lieferant GmbH', 'nui' => 'DE123456789', 'country_code' => 'DE'])->assertCreated();
+    }
+
+    public function test_an_update_judges_the_identifier_by_the_stored_country(): void
+    {
+        [$user, $business] = $this->bookkeepingBusiness();
+        $foreign = Counterparty::factory()->for($business)->supplier()->create(['nui' => null, 'country_code' => 'DE']);
+        $local = Counterparty::factory()->for($business)->customer()->create(['nui' => null]);
+
+        $this->actingAs($user)->putJson("/api/v1/businesses/{$business->id}/counterparties/{$foreign->id}", ['nui' => 'DE123456789'])->assertOk();
+        $this->actingAs($user)->putJson("/api/v1/businesses/{$business->id}/counterparties/{$local->id}", ['nui' => 'DE123456789'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('nui');
+        $this->actingAs($user)->putJson("/api/v1/businesses/{$business->id}/counterparties/{$local->id}", ['nui' => 'DE123456789', 'country_code' => 'DE'])->assertOk();
+    }
 }

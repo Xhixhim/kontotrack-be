@@ -30,6 +30,12 @@ class EloquentBusinessControlRepository implements BusinessControlRepository
                 ->where(fn ($query) => $query->whereNull('nui')->orWhere('nui', ''))
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'counterparty_identifiers' => $business->counterparties()
+                ->where('status', 'active')
+                ->whereNotNull('nui')
+                ->where('nui', '!=', '')
+                ->orderBy('name')
+                ->get(['id', 'name', 'nui', 'country_code']),
             'duplicate_counterparty_nuis' => $business->counterparties()
                 ->whereNotNull('nui')
                 ->where('nui', '!=', '')
