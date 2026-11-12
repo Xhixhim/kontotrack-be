@@ -29,6 +29,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'is_system_admin' => 'boolean',
+            'deactivated_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
@@ -39,7 +40,7 @@ class User extends Authenticatable
     /** @return BelongsToMany<Business, $this> */
     public function businesses(): BelongsToMany
     {
-        return $this->belongsToMany(Business::class)->withPivot(['role', 'status', 'invited_by', 'invited_at', 'accepted_at'])->withTimestamps();
+        return $this->belongsToMany(Business::class)->withPivot(['role', 'status', 'restrictions', 'invited_by', 'invited_at', 'accepted_at'])->withTimestamps();
     }
 
     public function hasTwoFactorEnabled(): bool

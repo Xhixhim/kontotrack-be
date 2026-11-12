@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Policies\BusinessPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,7 @@ class BusinessTeamMemberResource extends JsonResource
             'email' => $this->email,
             'role' => $this->pivot->role,
             'status' => $this->pivot->status,
+            'restrictions' => BusinessPolicy::restrictionsOf($this->pivot),
         ];
     }
 }

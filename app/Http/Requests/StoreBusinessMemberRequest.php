@@ -24,6 +24,8 @@ class StoreBusinessMemberRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email', 'max:255'],
+            // Used only when the email has no KontoTrack account yet and one is created.
+            'name' => ['nullable', 'string', 'max:255'],
             'role' => ['required', 'string', 'in:accountant,assistant_accountant,auditor'],
         ];
     }
