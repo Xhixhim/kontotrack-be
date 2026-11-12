@@ -33,7 +33,8 @@ return new class extends Migration
         Schema::table('invoices', function (Blueprint $table): void {
             $table->dropForeign('invoices_document_business_foreign');
             $table->dropUnique('invoices_business_document_unique');
-            $table->foreignId('document_id')->nullable()->constrained()->nullOnDelete();
+            // The column is still there; only the original single-column foreign key comes back.
+            $table->foreign('document_id')->references('id')->on('documents')->nullOnDelete();
         });
 
         Schema::table('documents', function (Blueprint $table): void {

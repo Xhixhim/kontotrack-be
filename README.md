@@ -9,6 +9,25 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Environments
+
+| Environment | Purpose | Settings |
+|---|---|---|
+| Local | Development | `.env.example` |
+| Staging | Try a release with realistic data before production | `.env.staging.example` |
+| Production | Real books | Same keys as staging, with production values |
+
+Every push and pull request runs the checks in `.github/workflows/ci.yml`: code style, the test suite, and all migrations against MySQL.
+
+### Releasing
+
+1. Merge into `develop` and wait for the checks to pass.
+2. Deploy to staging: `git pull`, `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `php artisan config:cache`, `php artisan route:cache`.
+3. On staging run `php artisan kontotrack:production-check` and fix everything it reports. Then walk through an invoice, a payment, a month close and a report.
+4. Run `php artisan kontotrack:backup` on production, then repeat step 2 there.
+
+Staging and production each need the cron entry `* * * * * php artisan schedule:run` (backups, restore drill, reminder emails).
+
 ## Email
 
 KontoTrack sends these emails: invitations and password links, invoices to customers (PDF attached, replies go to the business email), and a morning reminder of deadlines, document requests and approvals.
