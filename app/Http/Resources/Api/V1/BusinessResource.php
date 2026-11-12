@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Policies\BusinessPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,6 +31,10 @@ class BusinessResource extends JsonResource
             'phone' => $this->phone,
             'currency' => $this->currency,
             'role' => $this->whenLoaded('users', fn () => $this->users->first()?->pivot?->role),
+            'abilities' => $this->whenLoaded('users', fn () => $this->users->first() === null ? null : BusinessPolicy::abilities(
+                (string) $this->users->first()->pivot->role,
+                BusinessPolicy::restrictionsOf($this->users->first()->pivot),
+            )),
         ];
     }
 }

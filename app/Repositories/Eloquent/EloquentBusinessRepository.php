@@ -37,7 +37,7 @@ class EloquentBusinessRepository implements BusinessRepository
     /** @return Collection<int, User> */
     public function findMembers(Business $business): Collection
     {
-        return $business->users()->orderBy('name')->get();
+        return $business->users()->wherePivot('status', '!=', 'removed')->orderBy('name')->get();
     }
 
     /** @return Collection<int, Business> */
@@ -56,6 +56,7 @@ class EloquentBusinessRepository implements BusinessRepository
         $attributes = [
             'role' => $role,
             'status' => 'invited',
+            'restrictions' => null,
             'invited_by' => $inviter->getKey(),
             'invited_at' => now(),
             'accepted_at' => null,
@@ -78,7 +79,19 @@ class EloquentBusinessRepository implements BusinessRepository
         ]);
     }
 
+    public function findMember(Business $business, User $member): ?User
+    {
+        return $business->users()->whereKey($member->getKey())->wherePivot('status', '!=', 'removed')->first();
+    }
+
     /** @param array<string, mixed> $attributes */
+    public function updateMembership(Business $business, User $member, array $attributes): User
+    {
+        $business->users()->updateExistingPivot($member->getKey(), $attributes);
+
+        return $business->users()->whereKey($member->getKey())->firstOrFail();
+    }
+
     public function save(Business $business): Business
     {
         $business->save();

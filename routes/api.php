@@ -24,11 +24,14 @@ use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PayrollRunController;
 use App\Http\Controllers\Api\V1\PeriodReopeningController;
 use App\Http\Controllers\Api\V1\PostingAccountController;
+use App\Http\Controllers\Api\V1\SystemUserController;
 use App\Http\Controllers\Api\V1\TaskController;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
 use App\Services\Security\SecurityLogService;
 use App\Services\Security\TwoFactorService;
@@ -57,6 +60,12 @@ Route::prefix('v1')->group(function (): void {
         }
 
         $user = User::query()->where('email', $credentials['email'])->firstOrFail();
+
+        if ($user->deactivated_at !== null) {
+            $securityLog->loginFailed($credentials['email'], $request, 'web');
+
+            throw ValidationException::withMessages(['email' => ['This account has been deactivated. Contact your administrator.']]);
+        }
 
         if ($user->hasTwoFactorEnabled()) {
             if (empty($credentials['code']) && empty($credentials['recovery_code'])) {
@@ -102,6 +111,12 @@ Route::prefix('v1')->group(function (): void {
 
         $user = User::query()->where('email', $credentials['email'])->firstOrFail();
 
+        if ($user->deactivated_at !== null) {
+            $securityLog->loginFailed($credentials['email'], $request, 'mobile');
+
+            throw ValidationException::withMessages(['email' => ['This account has been deactivated. Contact your administrator.']]);
+        }
+
         if ($user->hasTwoFactorEnabled()) {
             if (empty($credentials['code']) && empty($credentials['recovery_code'])) {
                 return response()->json([
@@ -126,6 +141,9 @@ Route::prefix('v1')->group(function (): void {
         ]);
     })->middleware('throttle:6,1');
 
+    Route::post('/forgot-password', [PasswordController::class, 'forgot'])->middleware('throttle:6,1');
+    Route::post('/reset-password', [PasswordController::class, 'reset'])->middleware('throttle:6,1');
+
     Route::delete('/mobile/token', function (Request $request, SecurityLogService $securityLog) {
         $securityLog->loggedOut($request->user(), $request, 'mobile');
         $request->user()->currentAccessToken()?->delete();
@@ -133,7 +151,11 @@ Route::prefix('v1')->group(function (): void {
         return response()->noContent();
     })->middleware('auth:sanctum');
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', EnsureAccountIsActive::class])->group(function (): void {
+        Route::get('/admin/users', [SystemUserController::class, 'index']);
+        Route::post('/admin/users', [SystemUserController::class, 'store']);
+        Route::put('/admin/users/{user}', [SystemUserController::class, 'update']);
+        Route::put('/me/password', [PasswordController::class, 'change'])->middleware('throttle:6,1');
         Route::get('/compliance/rule-sets/effective', [ComplianceRuleSetController::class, 'effective']);
         Route::get('/compliance/rule-sets', [ComplianceRuleSetController::class, 'index']);
         Route::post('/compliance/rule-sets', [ComplianceRuleSetController::class, 'store']);
@@ -150,6 +172,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/businesses/{business}/team', [BusinessController::class, 'team'])
             ->middleware('can:manageMembers,business');
         Route::post('/businesses/{business}/team', [BusinessController::class, 'invite'])
+            ->middleware('can:manageMembers,business');
+        Route::put('/businesses/{business}/team/{member}', [BusinessController::class, 'updateMember'])
+            ->middleware('can:manageMembers,business');
+        Route::delete('/businesses/{business}/team/{member}', [BusinessController::class, 'removeMember'])
             ->middleware('can:manageMembers,business');
         Route::post('/businesses/{business}/invitations/accept', [BusinessController::class, 'acceptInvitation']);
         Route::get('/me/business-invitations', [BusinessController::class, 'invitations']);

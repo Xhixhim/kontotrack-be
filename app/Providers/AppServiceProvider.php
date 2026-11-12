@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Business;
+use App\Models\User;
 use App\Policies\BusinessPolicy;
 use App\Repositories\Contracts\AccountingPeriodRepository;
 use App\Repositories\Contracts\AccountRepository;
@@ -50,8 +51,11 @@ use App\Repositories\Eloquent\EloquentPaymentRepository;
 use App\Repositories\Eloquent\EloquentPayrollRepository;
 use App\Repositories\Eloquent\EloquentPostingAccountRepository;
 use App\Repositories\Eloquent\EloquentTaskRepository;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -91,5 +95,25 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Business::class, BusinessPolicy::class);
+
+        Password::defaults(fn () => Password::min(10)->letters()->numbers());
+
+        // Password links open the web app, which posts the token back to the API.
+        ResetPassword::createUrlUsing(fn (User $user, string $token): string => rtrim((string) config('kontotrack.frontend_url'), '/').'/reset-password?'.http_build_query([
+            'token' => $token,
+            'email' => $user->email,
+        ]));
+        ResetPassword::toMailUsing(function (User $user, string $token): MailMessage {
+            $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+
+            return (new MailMessage)
+                ->subject('Ndryshimi i fjalëkalimit · Reset your KontoTrack password')
+                ->greeting("Përshëndetje {$user->name},")
+                ->line('Kemi pranuar një kërkesë për të ndryshuar fjalëkalimin e llogarisë suaj në KontoTrack.')
+                ->line('We received a request to reset the password of your KontoTrack account.')
+                ->action('Ndrysho fjalëkalimin · Reset password', (ResetPassword::$createUrlCallback)($user, $token))
+                ->line("Lidhja vlen {$minutes} minuta. Nëse nuk e keni kërkuar ju, nuk duhet të bëni asgjë.")
+                ->line("The link is valid for {$minutes} minutes. If you did not ask for it, you do not need to do anything.");
+        });
     }
 }

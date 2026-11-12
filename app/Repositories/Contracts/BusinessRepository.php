@@ -26,6 +26,11 @@ interface BusinessRepository
 
     public function acceptInvitation(Business $business, User $member): void;
 
+    public function findMember(Business $business, User $member): ?User;
+
+    /** @param array<string, mixed> $attributes */
+    public function updateMembership(Business $business, User $member, array $attributes): User;
+
     public function save(Business $business): Business;
 
     /** @param array<string, mixed> $attributes */

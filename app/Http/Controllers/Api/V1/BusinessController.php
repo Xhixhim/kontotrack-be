@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBusinessMemberRequest;
 use App\Http\Requests\StoreBusinessRequest;
+use App\Http\Requests\UpdateBusinessMemberRequest;
 use App\Http\Requests\UpdateBusinessRequest;
 use App\Http\Resources\Api\V1\BusinessMemberResource;
 use App\Http\Resources\Api\V1\BusinessResource;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\Businesses\BusinessService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class BusinessController extends Controller
 {
@@ -60,6 +62,23 @@ class BusinessController extends Controller
         $user = $request->user();
 
         return new BusinessTeamMemberResource($this->businessService->inviteMember($business, $user, $request->validated()));
+    }
+
+    public function updateMember(UpdateBusinessMemberRequest $request, Business $business, User $member): BusinessTeamMemberResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return new BusinessTeamMemberResource($this->businessService->updateMember($business, $user, $member, $request->validated()));
+    }
+
+    public function removeMember(Request $request, Business $business, User $member): Response
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $this->businessService->removeMember($business, $user, $member);
+
+        return response()->noContent();
     }
 
     public function invitations(Request $request): AnonymousResourceCollection

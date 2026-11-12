@@ -8,6 +8,44 @@ use App\Models\User;
 class BusinessPolicy
 {
     /**
+     * What each role may do. A restriction is something the owner can take away from one member
+     * without changing that member's role; the owner's own access cannot be restricted.
+     *
+     * @var array<string, array{roles: list<string>, restriction: string|null}>
+     */
+    private const ABILITIES = [
+        'manage_bookkeeping' => ['roles' => ['owner', 'accountant'], 'restriction' => 'bookkeeping'],
+        'upload_documents' => ['roles' => ['owner', 'accountant', 'assistant_accountant'], 'restriction' => 'documents'],
+        'view_audit_trail' => ['roles' => ['owner', 'accountant', 'auditor'], 'restriction' => 'audit_trail'],
+        'view_payroll' => ['roles' => ['owner', 'accountant', 'auditor'], 'restriction' => 'payroll'],
+        'manage_members' => ['roles' => ['owner'], 'restriction' => null],
+    ];
+
+    /** @var list<string> */
+    public const RESTRICTIONS = ['bookkeeping', 'documents', 'audit_trail', 'payroll'];
+
+    /**
+     * @param  list<string>  $restrictions
+     * @return array<string, bool>
+     */
+    public static function abilities(string $role, array $restrictions): array
+    {
+        return array_map(
+            fn (array $ability): bool => in_array($role, $ability['roles'], true)
+                && ($role === 'owner' || $ability['restriction'] === null || ! in_array($ability['restriction'], $restrictions, true)),
+            self::ABILITIES,
+        );
+    }
+
+    /** @return list<string> */
+    public static function restrictionsOf(?object $membership): array
+    {
+        $restrictions = json_decode((string) ($membership->restrictions ?? ''), true);
+
+        return is_array($restrictions) ? array_values(array_intersect(self::RESTRICTIONS, $restrictions)) : [];
+    }
+
+    /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
@@ -25,11 +63,7 @@ class BusinessPolicy
 
     public function uploadDocuments(User $user, Business $business): bool
     {
-        return $business->users()
-            ->whereKey($user->getKey())
-            ->wherePivot('status', 'active')
-            ->wherePivotIn('role', ['owner', 'accountant', 'assistant_accountant'])
-            ->exists();
+        return $this->allows($user, $business, 'upload_documents');
     }
 
     /**
@@ -45,11 +79,7 @@ class BusinessPolicy
      */
     public function update(User $user, Business $business): bool
     {
-        return $business->users()
-            ->whereKey($user->getKey())
-            ->wherePivot('status', 'active')
-            ->wherePivotIn('role', ['owner', 'accountant'])
-            ->exists();
+        return $this->allows($user, $business, 'manage_bookkeeping');
     }
 
     public function manageBookkeeping(User $user, Business $business): bool
@@ -68,25 +98,17 @@ class BusinessPolicy
 
     public function viewAuditTrail(User $user, Business $business): bool
     {
-        return $business->users()
-            ->whereKey($user->getKey())
-            ->wherePivot('status', 'active')
-            ->wherePivotIn('role', ['owner', 'accountant', 'auditor'])
-            ->exists();
+        return $this->allows($user, $business, 'view_audit_trail');
     }
 
     public function viewPayroll(User $user, Business $business): bool
     {
-        return $this->viewAuditTrail($user, $business);
+        return $this->allows($user, $business, 'view_payroll');
     }
 
     public function manageMembers(User $user, Business $business): bool
     {
-        return $business->users()
-            ->whereKey($user->getKey())
-            ->wherePivot('status', 'active')
-            ->wherePivot('role', 'owner')
-            ->exists();
+        return $this->allows($user, $business, 'manage_members');
     }
 
     /**
@@ -111,6 +133,13 @@ class BusinessPolicy
     public function forceDelete(User $user, Business $business): bool
     {
         return false;
+    }
+
+    private function allows(User $user, Business $business, string $ability): bool
+    {
+        $membership = $business->users()->whereKey($user->getKey())->wherePivot('status', 'active')->first()?->pivot;
+
+        return $membership !== null && self::abilities((string) $membership->role, self::restrictionsOf($membership))[$ability];
     }
 
     private function hasActiveMembership(User $user, Business $business): bool
