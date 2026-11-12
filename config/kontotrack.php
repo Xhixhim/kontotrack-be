@@ -28,6 +28,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | AI features (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Reading invoices automatically and the assistant use Claude through
+    | Anthropic's API. They stay off until ANTHROPIC_API_KEY is set, because
+    | turning them on sends document contents and business figures to
+    | Anthropic. Nothing read or answered by AI changes the books by itself.
+    |
+    */
+
+    'ai' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('KONTOTRACK_AI_MODEL', 'claude-opus-5-5'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Encrypted employee data
     |--------------------------------------------------------------------------
     |

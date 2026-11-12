@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\YearEndCloseController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
+use App\Services\Documents\DocumentReadingService;
 use App\Services\Imports\DataImportService;
 use App\Services\Security\SecurityLogService;
 use App\Services\Security\TwoFactorService;
@@ -292,6 +293,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:manageBookkeeping,business');
         Route::delete('/businesses/{business}/depreciation-runs/{depreciationRun}', [DepreciationRunController::class, 'destroy'])
             ->middleware('can:manageBookkeeping,business');
+        // Optional features the operator has switched on, so the web app only offers what works.
+        Route::get('/features', fn () => response()->json(['data' => ['document_reading' => DocumentReadingService::enabled()]]));
         Route::get('/me/notifications', [NotificationController::class, 'index']);
         Route::get('/businesses/{business}/tasks', [TaskController::class, 'index'])
             ->middleware('can:view,business');
@@ -397,6 +400,9 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:view,business');
         Route::put('/businesses/{business}/documents/{document}', [DocumentController::class, 'update'])
             ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/documents/{document}/read', [DocumentController::class, 'read'])
+            ->whereNumber('document')
+            ->middleware(['can:manageBookkeeping,business', 'throttle:20,1']);
         Route::post('/businesses/{business}/documents/{document}/review', [DocumentController::class, 'review'])
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/document-requests', [DocumentRequestController::class, 'index'])

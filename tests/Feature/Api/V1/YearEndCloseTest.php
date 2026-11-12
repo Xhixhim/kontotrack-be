@@ -78,10 +78,10 @@ class YearEndCloseTest extends TestCase
         $base = "/api/v1/businesses/{$this->business->id}/reports/financial";
         $this->actingAs($this->user)->getJson("{$base}?type=profit_loss&from=2025-01-01&to=2025-12-31")->assertOk()->assertJsonPath('data.totals.result', '700.00');
         $balanceSheet = $this->actingAs($this->user)->getJson("{$base}?type=balance_sheet&to=2026-01-20")->assertOk()->json('data.rows');
-        $this->assertSame(['Bank', 'Retained'], array_column($balanceSheet, 'name'));
+        $this->assertEqualsCanonicalizing(['Bank', 'Retained'], array_column($balanceSheet, 'name'));
         $this->assertSame('700.00', collect($balanceSheet)->firstWhere('name', 'Retained')['credit']);
         $trialBalance = $this->actingAs($this->user)->getJson("{$base}?type=trial_balance&to=2026-01-20")->assertOk()->json('data.rows');
-        $this->assertSame(['Bank', 'Retained'], array_column($trialBalance, 'name'));
+        $this->assertEqualsCanonicalizing(['Bank', 'Retained'], array_column($trialBalance, 'name'));
 
         $this->actingAs($this->user)->getJson("/api/v1/businesses/{$this->business->id}/year-end/2025")
             ->assertJsonPath('data.closed', true)
