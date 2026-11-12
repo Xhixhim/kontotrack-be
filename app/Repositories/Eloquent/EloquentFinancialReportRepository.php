@@ -326,6 +326,7 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
             ->orderBy('invoice_lines.position')
             ->select([
                 'invoices.id as invoice_id',
+                'invoices.counterparty_id',
                 'invoices.kind',
                 'invoices.invoice_number',
                 'invoices.issued_on',
