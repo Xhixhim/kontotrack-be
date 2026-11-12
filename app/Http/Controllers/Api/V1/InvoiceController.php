@@ -9,6 +9,7 @@ use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\Business;
 use App\Models\User;
+use App\Services\Invoicing\InvoiceEmailService;
 use App\Services\Invoicing\InvoiceService;
 use App\Services\Reports\DocumentExportService;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,20 @@ class InvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$file['filename'].'"',
         ]);
+    }
+
+    public function send(Request $request, Business $business, int $invoice, InvoiceEmailService $invoiceEmailService): InvoiceResource
+    {
+        $attributes = $request->validate([
+            'to' => ['required', 'email', 'max:255'],
+            'cc' => ['nullable', 'array', 'max:5'],
+            'cc.*' => ['email', 'max:255'],
+            'message' => ['nullable', 'string', 'max:2000'],
+        ]);
+        /** @var User $user */
+        $user = $request->user();
+
+        return new InvoiceResource($invoiceEmailService->send($business, $user, $invoice, $attributes));
     }
 
     public function taxCodes(Request $request, Business $business): JsonResponse

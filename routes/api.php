@@ -232,6 +232,9 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/businesses/{business}/invoices/{invoice}', [InvoiceController::class, 'destroy'])
             ->whereNumber('invoice')
             ->middleware('can:manageBookkeeping,business');
+        Route::post('/businesses/{business}/invoices/{invoice}/send', [InvoiceController::class, 'send'])
+            ->whereNumber('invoice')
+            ->middleware(['can:manageBookkeeping,business', 'throttle:30,1']);
         Route::post('/businesses/{business}/invoices/{invoice}/credit-notes', [InvoiceController::class, 'storeCreditNote'])
             ->middleware('can:manageBookkeeping,business');
         Route::post('/businesses/{business}/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])
@@ -394,8 +397,18 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/businesses/{business}/conversations/{conversation}/messages', [ConversationController::class, 'send'])
             ->middleware('can:view,business');
         Route::get('/me', fn (Request $request) => response()->json([
-            'data' => [...$request->user()->only(['id', 'name', 'email', 'is_system_admin']), 'two_factor_enabled' => $request->user()->hasTwoFactorEnabled()],
+            'data' => [
+                ...$request->user()->only(['id', 'name', 'email', 'is_system_admin']),
+                'two_factor_enabled' => $request->user()->hasTwoFactorEnabled(),
+                'email_notifications' => $request->user()->email_notifications ?? true,
+            ],
         ]));
+        Route::put('/me/preferences', function (Request $request) {
+            $attributes = $request->validate(['email_notifications' => ['required', 'boolean']]);
+            $request->user()->forceFill(['email_notifications' => $attributes['email_notifications']])->save();
+
+            return response()->json(['data' => ['email_notifications' => $request->user()->email_notifications]]);
+        });
         Route::post('/me/two-factor', fn (Request $request, TwoFactorService $twoFactor) => response()->json(['data' => $twoFactor->begin($request->user())]));
         Route::post('/me/two-factor/confirm', function (Request $request, TwoFactorService $twoFactor) {
             $attributes = $request->validate(['code' => ['required', 'string', 'max:10']]);

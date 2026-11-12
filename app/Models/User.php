@@ -30,6 +30,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'is_system_admin' => 'boolean',
             'deactivated_at' => 'datetime',
+            'email_notifications' => 'boolean',
+            'notification_digest_sent_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',

@@ -9,6 +9,14 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Email
+
+KontoTrack sends these emails: invitations and password links, invoices to customers (PDF attached, replies go to the business email), and a morning reminder of deadlines, document requests and approvals.
+
+- Set `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` and `MAIL_FROM_ADDRESS` for your mail service. With `MAIL_MAILER=log` nothing is delivered; emails are only written to the log.
+- Set `KONTOTRACK_FRONTEND_URL` to the address of the web app. Links in emails open it.
+- Reminders are sent at 07:00 by the scheduler (`php artisan kontotrack:reminders:send`). Each user can turn them off in their account settings.
+
 ## Backup and recovery
 
 Backups hold the full database and every uploaded business document in one zip archive.
