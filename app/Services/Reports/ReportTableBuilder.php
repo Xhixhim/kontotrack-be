@@ -20,6 +20,10 @@ class ReportTableBuilder
         'general_ledger' => 'Kartelat e llogarive · Account cards',
         'cash_book' => 'Libri i arkës · Cash book',
         'bank_reconciliation' => 'Rakordimi bankar dhe diferencat · Bank reconciliation and differences',
+        'turnover' => 'Qarkullimi · Turnover',
+        'stock' => 'Gjendja e stokut · Stock on hand',
+        'payroll' => 'Pagat · Payroll',
+        'fixed_assets' => 'Regjistri i aseteve fikse · Fixed asset register',
     ];
 
     /**
@@ -37,6 +41,10 @@ class ReportTableBuilder
             'general_ledger' => $this->generalLedger($report),
             'cash_book' => [$this->cashBook($report)],
             'bank_reconciliation' => $this->bankReconciliation($report),
+            'turnover' => [$this->turnover($report)],
+            'stock' => [$this->stock($report)],
+            'payroll' => [$this->payroll($report)],
+            'fixed_assets' => [$this->fixedAssets($report)],
         };
     }
 
@@ -177,6 +185,53 @@ class ReportTableBuilder
                 $report['not_on_statement'] === [] ? [['', '', 'Asnjë · None', null]] : array_map(fn (array $line): array => [$line['entry_date'], $line['reference'] ?? '', $line['description'], $line['amount']], $report['not_on_statement']),
                 []),
         ];
+    }
+
+    /** @param array<string, mixed> $report */
+    private function turnover(array $report): array
+    {
+        $amounts = ['sales_net', 'sales_tax', 'sales_gross', 'purchases_net', 'purchases_tax', 'purchases_gross'];
+
+        return $this->section($report['counterparty']['name'] ?? null,
+            [$report['group_by'] === 'counterparty' ? 'Klienti / Furnitori · Customer / Supplier' : 'Muaji · Month', '#Shitje pa TVSH · Sales net', '#TVSH e shitjeve · Sales VAT', '#Shitje gjithsej · Sales total', '#Blerje pa TVSH · Purchases net', '#TVSH e blerjeve · Purchase VAT', '#Blerje gjithsej · Purchases total'],
+            array_map(fn (array $row): array => [$row['label'], ...array_map(fn (string $column): string => $row[$column], $amounts)], $report['rows']),
+            [['Totali · Total', ...array_map(fn (string $column): string => $report['totals'][$column], $amounts)]]);
+    }
+
+    /** @param array<string, mixed> $report */
+    private function stock(array $report): array
+    {
+        return $this->section($report['warehouse']['name'] ?? null,
+            ['Kodi · Code', 'Artikulli · Item', 'Njësia · Unit', 'Fillimi · Opening', 'Hyrje · In', 'Dalje · Out', 'Gjendja · On hand', 'Minimumi · Minimum', '#Vlera · Value'],
+            array_map(fn (array $row): array => [
+                $row['sku'] ?? '', $row['name'], $row['unit'] ?? '', $row['opening_quantity'], $row['quantity_in'], $row['quantity_out'],
+                $row['closing_quantity'].($row['below_minimum'] ? ' ▼' : ''), $row['minimum_quantity'], $row['value'],
+            ], $report['rows']),
+            [['', 'Vlera me çmim blerjeje · Value at purchase price', '', '', '', '', '', '', $report['totals']['value']]]);
+    }
+
+    /** @param array<string, mixed> $report */
+    private function payroll(array $report): array
+    {
+        $amounts = ['gross_salary', 'employee_contribution', 'employer_contribution', 'income_tax', 'net_salary'];
+
+        return $this->section(null,
+            ['Punëtori · Employee', 'Muaj · Months', '#Bruto · Gross', '#Kontributi i punëtorit · Employee pension', '#Kontributi i punëdhënësit · Employer pension', '#Tatimi · Income tax', '#Neto · Net'],
+            array_map(fn (array $row): array => [$row['employee_name'], (int) $row['months'], ...array_map(fn (string $column): string => $row[$column], $amounts)], $report['rows']),
+            [['Totali · Total', count($report['months']), ...array_map(fn (string $column): string => $report['totals'][$column], $amounts)]]);
+    }
+
+    /** @param array<string, mixed> $report */
+    private function fixedAssets(array $report): array
+    {
+        return $this->section($report['category'],
+            ['Kodi · Code', 'Aseti · Asset', 'Kategoria · Category', 'Blerë më · Acquired', 'Statusi · Status', '#Kosto · Cost', '#Amortizimi i akumuluar · Accumulated depreciation', '#Vlera e mbetur · Book value'],
+            array_map(fn (array $row): array => [
+                $row['asset_code'], $row['name'], $row['category'] ?? '', $row['acquired_on'],
+                $row['disposed_on'] === null ? 'Në përdorim · In use' : "Çregjistruar · Disposed {$row['disposed_on']}",
+                $row['cost'], $row['accumulated_depreciation'], $row['book_value'],
+            ], $report['rows']),
+            [['', 'Totali i aseteve në përdorim · Total of assets in use', '', '', '', $report['totals']['cost'], $report['totals']['accumulated_depreciation'], $report['totals']['book_value']]]);
     }
 
     private function negate(string $amount): string

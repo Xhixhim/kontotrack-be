@@ -8,14 +8,26 @@ use Illuminate\Validation\ValidationException;
 
 class FinancialReportService
 {
-    public function __construct(private FinancialReportRepository $financialReportRepository, private BankReconciliationReportService $bankReconciliationReport) {}
+    public function __construct(
+        private FinancialReportRepository $financialReportRepository,
+        private BankReconciliationReportService $bankReconciliationReport,
+        private OperationalReportService $operationalReport,
+        private ReportTableBuilder $tableBuilder,
+    ) {}
 
     /**
-     * @param  array{account_id?: int|null, cash_account_id?: int|null, bank_account_id?: int|null, statement_balance?: string|null}  $options
+     * @param  array{account_id?: int|null, cash_account_id?: int|null, bank_account_id?: int|null, statement_balance?: string|null, counterparty_id?: int|null, warehouse_id?: int|null, category?: string|null, group_by?: string|null}  $options
      * @return array<string, mixed>
      */
     public function generate(Business $business, string $type, string $from, string $to, array $options = []): array
     {
+        if (in_array($type, OperationalReportService::TYPES, true)) {
+            $report = $this->operationalReport->generate($business, $type, $from, $to, $options);
+
+            // These reports are shown as plain tables, so the screen uses the same layout as the exports.
+            return [...$report, 'table' => ['title' => ReportTableBuilder::TITLES[$type], 'sections' => $this->tableBuilder->sections($type, $report)]];
+        }
+
         if ($type === 'general_ledger') {
             $accountId = $options['account_id'] ?? null;
 
@@ -68,12 +80,26 @@ class FinancialReportService
             ];
         }
 
+        $counterpartyId = $options['counterparty_id'] ?? null;
+
+        if ($counterpartyId !== null && ! $business->counterparties()->whereKey($counterpartyId)->exists()) {
+            throw ValidationException::withMessages(['counterparty_id' => ['Choose a customer or supplier of this business.']]);
+        }
+
         if (in_array($type, ['receivable_aging', 'payable_aging'], true)) {
-            return $this->financialReportRepository->generateInvoiceAging(
+            $report = $this->financialReportRepository->generateInvoiceAging(
                 $business,
                 $type === 'receivable_aging' ? 'sale' : 'purchase',
                 $to,
             );
+
+            if ($counterpartyId === null) {
+                return $report;
+            }
+
+            $rows = array_values(array_filter($report['rows'], fn (array $row): bool => (int) $row['counterparty_id'] === $counterpartyId));
+
+            return [...$report, 'rows' => $rows, 'totals' => $rows === [] ? array_map(fn (mixed $total): mixed => is_int($total) ? 0 : '0.00', $report['totals']) : array_intersect_key($rows[0], $report['totals'])];
         }
 
         if ($type === 'vat_summary') {

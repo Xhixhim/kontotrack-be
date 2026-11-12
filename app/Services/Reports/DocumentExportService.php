@@ -58,7 +58,7 @@ class DocumentExportService
                 'period' => $period,
                 'sections' => $sections,
                 'generatedAt' => now(config('kontotrack.display_timezone'))->format('d.m.Y H:i'),
-            ])->setPaper('a4', in_array($type, ['vat_summary', 'receivable_aging', 'payable_aging'], true) ? 'landscape' : 'portrait')->output();
+            ])->setPaper('a4', in_array($type, ['vat_summary', 'receivable_aging', 'payable_aging', 'turnover', 'stock', 'payroll', 'fixed_assets'], true) ? 'landscape' : 'portrait')->output();
 
             return ['contents' => $contents, 'filename' => "{$filename}.pdf", 'mime' => 'application/pdf'];
         }
