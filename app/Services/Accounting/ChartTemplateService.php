@@ -44,7 +44,7 @@ class ChartTemplateService
         ['code' => '3', 'name' => 'Kapitali · Equity', 'account_type' => 'equity', 'normal_balance' => 'credit'],
         ['code' => '3100', 'name' => 'Kapitali themelor · Share capital', 'account_type' => 'equity', 'normal_balance' => 'credit', 'parent' => '3'],
         ['code' => '3200', 'name' => 'Rezervat · Reserves', 'account_type' => 'equity', 'normal_balance' => 'credit', 'parent' => '3'],
-        ['code' => '3300', 'name' => 'Fitimi i mbajtur · Retained earnings', 'account_type' => 'equity', 'normal_balance' => 'credit', 'parent' => '3'],
+        ['code' => '3300', 'name' => 'Fitimi i mbajtur · Retained earnings', 'account_type' => 'equity', 'normal_balance' => 'credit', 'parent' => '3', 'purpose' => 'retained_earnings'],
         ['code' => '3400', 'name' => 'Fitimi ose humbja e vitit · Profit or loss for the year', 'account_type' => 'equity', 'normal_balance' => 'credit', 'parent' => '3'],
         ['code' => '3500', 'name' => 'Tërheqjet e pronarit · Owner drawings', 'account_type' => 'equity', 'normal_balance' => 'debit', 'parent' => '3'],
 

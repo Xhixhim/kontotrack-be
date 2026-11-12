@@ -22,6 +22,7 @@ class JournalEntryResource extends JsonResource
             'reference' => $this->reference,
             'description' => $this->description,
             'status' => $this->status,
+            'entry_type' => $this->entry_type ?? 'standard',
             'reversal_of_id' => $this->reversal_of_id,
             'posted_at' => $this->posted_at,
             'accounting_period' => $this->whenLoaded('accountingPeriod', fn () => [

@@ -33,6 +33,7 @@ class PostingAccountService
         'accumulated_depreciation' => ['label' => 'Accumulated depreciation', 'account_types' => ['asset']],
         'depreciation_expense' => ['label' => 'Depreciation expense', 'account_types' => ['expense']],
         'asset_disposal_loss' => ['label' => 'Loss on asset disposal', 'account_types' => ['expense']],
+        'retained_earnings' => ['label' => 'Retained earnings', 'account_types' => ['equity']],
     ];
 
     public function __construct(private PostingAccountRepository $postingAccountRepository) {}

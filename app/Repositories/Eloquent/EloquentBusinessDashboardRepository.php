@@ -25,6 +25,7 @@ class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
             ->where('entries.status', 'posted')
             ->whereBetween('entries.entry_date', [$from, $to])
             ->when($unitId !== null, fn ($query) => $query->where('entries.business_unit_id', $unitId))
+            ->where('entries.entry_type', '!=', 'year_end_closing')
             ->whereIn('accounts.account_type', ['revenue', 'expense'])
             ->selectRaw('accounts.account_type, SUM(CASE WHEN accounts.account_type = ? THEN lines.credit - lines.debit ELSE lines.debit - lines.credit END) AS total', ['revenue'])
             ->groupBy('accounts.account_type')
