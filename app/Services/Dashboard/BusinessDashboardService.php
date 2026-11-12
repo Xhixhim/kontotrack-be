@@ -14,9 +14,10 @@ class BusinessDashboardService
      *
      * @return array<string, string|int|null>
      */
-    public function summaryForBusiness(Business $business, string $from, string $to, bool $includePayroll = true): array
+    public function summaryForBusiness(Business $business, string $from, string $to, bool $includePayroll = true, ?int $unitId = null): array
     {
-        $summary = $this->dashboardRepository->summaryForBusiness($business, $from, $to);
+        // A unit narrows revenue, expenses, result and VAT; balances such as cash, bank and debts stay for the whole business.
+        $summary = [...$this->dashboardRepository->summaryForBusiness($business, $from, $to, $unitId), 'business_unit_id' => $unitId];
 
         if (! $includePayroll) {
             $summary['payroll_gross'] = null;

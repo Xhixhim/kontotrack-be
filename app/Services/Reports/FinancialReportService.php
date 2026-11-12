@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Business;
 use App\Repositories\Contracts\FinancialReportRepository;
+use App\Services\Units\BusinessUnitService;
 use Illuminate\Validation\ValidationException;
 
 class FinancialReportService
@@ -13,14 +14,18 @@ class FinancialReportService
         private BankReconciliationReportService $bankReconciliationReport,
         private OperationalReportService $operationalReport,
         private ReportTableBuilder $tableBuilder,
+        private BusinessUnitService $unitService,
     ) {}
 
     /**
-     * @param  array{account_id?: int|null, cash_account_id?: int|null, bank_account_id?: int|null, statement_balance?: string|null, counterparty_id?: int|null, warehouse_id?: int|null, category?: string|null, group_by?: string|null}  $options
+     * @param  array{account_id?: int|null, cash_account_id?: int|null, bank_account_id?: int|null, statement_balance?: string|null, counterparty_id?: int|null, warehouse_id?: int|null, category?: string|null, group_by?: string|null, business_unit_id?: int|null}  $options
      * @return array<string, mixed>
      */
     public function generate(Business $business, string $type, string $from, string $to, array $options = []): array
     {
+        $unit = $this->unitService->assertBelongs($business, $options['business_unit_id'] ?? null);
+        $unitId = $unit?->getKey();
+
         if (in_array($type, OperationalReportService::TYPES, true)) {
             $report = $this->operationalReport->generate($business, $type, $from, $to, $options);
 
@@ -40,7 +45,8 @@ class FinancialReportService
                 'from' => $from,
                 'to' => $to,
                 'currency' => $business->currency,
-                'accounts' => $this->financialReportRepository->generalLedger($business, $accountId === null ? null : [$accountId], $from, $to),
+                'business_unit' => $unit?->only(['id', 'name']),
+                'accounts' => $this->financialReportRepository->generalLedger($business, $accountId === null ? null : [$accountId], $from, $to, $unitId),
             ];
         }
 
@@ -106,6 +112,6 @@ class FinancialReportService
             return $this->financialReportRepository->generateVatSummary($business, $from, $to);
         }
 
-        return $this->financialReportRepository->generate($business, $type, $from, $to);
+        return [...$this->financialReportRepository->generate($business, $type, $from, $to, $unitId), 'business_unit' => $type === 'balance_sheet' ? null : $unit?->only(['id', 'name'])];
     }
 }

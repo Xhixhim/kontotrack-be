@@ -27,6 +27,12 @@ class Business extends Model
         return $this->belongsToMany(User::class)->withPivot(['role', 'status', 'restrictions', 'invited_by', 'invited_at', 'accepted_at'])->withTimestamps();
     }
 
+    /** @return HasMany<BusinessUnit, $this> */
+    public function units(): HasMany
+    {
+        return $this->hasMany(BusinessUnit::class);
+    }
+
     /** @return HasMany<AccountingPeriod, $this> */
     public function accountingPeriods(): HasMany
     {

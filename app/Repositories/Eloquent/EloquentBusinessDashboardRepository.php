@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
 {
-    public function summaryForBusiness(Business $business, string $from, string $to): array
+    public function summaryForBusiness(Business $business, string $from, string $to, ?int $unitId = null): array
     {
         $businessId = (int) $business->getKey();
         $periodAmounts = DB::table('journal_lines as lines')
@@ -24,6 +24,7 @@ class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
             ->where('entries.business_id', $businessId)
             ->where('entries.status', 'posted')
             ->whereBetween('entries.entry_date', [$from, $to])
+            ->when($unitId !== null, fn ($query) => $query->where('entries.business_unit_id', $unitId))
             ->whereIn('accounts.account_type', ['revenue', 'expense'])
             ->selectRaw('accounts.account_type, SUM(CASE WHEN accounts.account_type = ? THEN lines.credit - lines.debit ELSE lines.debit - lines.credit END) AS total', ['revenue'])
             ->groupBy('accounts.account_type')
@@ -41,6 +42,7 @@ class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
             ->where('invoices.business_id', $businessId)
             ->where('entries.status', 'posted')
             ->whereBetween('invoices.issued_on', [$from, $to])
+            ->when($unitId !== null, fn ($query) => $query->where('invoices.business_unit_id', $unitId))
             ->whereIn('invoices.status', ['issued', 'partially_paid', 'paid', 'cancelled'])
             ->selectRaw("invoices.kind, SUM(CASE WHEN invoices.document_type = 'credit_note' THEN -invoices.tax_amount ELSE invoices.tax_amount END) AS total")
             ->groupBy('invoices.kind')
@@ -49,6 +51,7 @@ class EloquentBusinessDashboardRepository implements BusinessDashboardRepository
             ->where('business_id', $businessId)
             ->where('status', 'cancelled')
             ->whereBetween('cancelled_on', [$from, $to])
+            ->when($unitId !== null, fn ($query) => $query->where('business_unit_id', $unitId))
             ->selectRaw('kind, SUM(tax_amount) AS total')
             ->groupBy('kind')
             ->pluck('total', 'kind');

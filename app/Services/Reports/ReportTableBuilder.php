@@ -192,7 +192,7 @@ class ReportTableBuilder
     {
         $amounts = ['sales_net', 'sales_tax', 'sales_gross', 'purchases_net', 'purchases_tax', 'purchases_gross'];
 
-        return $this->section($report['counterparty']['name'] ?? null,
+        return $this->section(implode(' · ', array_filter([$report['counterparty']['name'] ?? null, $report['business_unit']['name'] ?? null])) ?: null,
             [$report['group_by'] === 'counterparty' ? 'Klienti / Furnitori · Customer / Supplier' : 'Muaji · Month', '#Shitje pa TVSH · Sales net', '#TVSH e shitjeve · Sales VAT', '#Shitje gjithsej · Sales total', '#Blerje pa TVSH · Purchases net', '#TVSH e blerjeve · Purchase VAT', '#Blerje gjithsej · Purchases total'],
             array_map(fn (array $row): array => [$row['label'], ...array_map(fn (string $column): string => $row[$column], $amounts)], $report['rows']),
             [['Totali · Total', ...array_map(fn (string $column): string => $report['totals'][$column], $amounts)]]);

@@ -24,6 +24,7 @@ class StoreInvoiceRequest extends FormRequest
         return [
             'kind' => ['required', 'string', 'in:sale,purchase'],
             'counterparty_id' => ['required', 'integer'],
+            'business_unit_id' => ['nullable', 'integer'],
             'document_id' => ['nullable', 'integer'],
             'invoice_number' => ['required_if:kind,purchase', 'prohibited_if:kind,sale', 'nullable', 'string', 'max:80'],
             'issued_on' => ['required', 'date'],

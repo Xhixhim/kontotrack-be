@@ -31,5 +31,5 @@ interface BusinessDashboardRepository
      *     stock_items: int
      * }
      */
-    public function summaryForBusiness(Business $business, string $from, string $to): array;
+    public function summaryForBusiness(Business $business, string $from, string $to, ?int $unitId = null): array;
 }

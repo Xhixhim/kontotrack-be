@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\BankTransactionController;
 use App\Http\Controllers\Api\V1\BusinessControlController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessDashboardController;
+use App\Http\Controllers\Api\V1\BusinessUnitController;
 use App\Http\Controllers\Api\V1\CashAccountController;
 use App\Http\Controllers\Api\V1\ComplianceRuleSetController;
 use App\Http\Controllers\Api\V1\ConversationController;
@@ -179,6 +180,13 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:manageMembers,business');
         Route::post('/businesses/{business}/invitations/accept', [BusinessController::class, 'acceptInvitation']);
         Route::get('/me/business-invitations', [BusinessController::class, 'invitations']);
+        Route::get('/businesses/{business}/units', [BusinessUnitController::class, 'index'])
+            ->middleware('can:view,business');
+        Route::post('/businesses/{business}/units', [BusinessUnitController::class, 'store'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::put('/businesses/{business}/units/{unit}', [BusinessUnitController::class, 'update'])
+            ->whereNumber('unit')
+            ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/controls', [BusinessControlController::class, 'index'])
             ->middleware('can:view,business');
         Route::get('/businesses/{business}/dashboard', [BusinessDashboardController::class, 'show'])
