@@ -9,6 +9,44 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Backup and recovery
+
+Backups hold the full database and every uploaded business document in one zip archive.
+
+| Task | Command |
+|---|---|
+| Create a backup, verify it, prune old ones | `php artisan kontotrack:backup` |
+| Check an archive against its checksums | `php artisan kontotrack:backup:verify [path]` |
+| Rehearse a restore without touching live data | `php artisan kontotrack:backup:restore [path] --drill` |
+| Restore the live system | `php artisan kontotrack:backup:restore [path]` |
+
+Without a path, the newest archive is used.
+
+### Configuration
+
+- `KONTOTRACK_BACKUP_PATH`: where archives are written (default `storage/app/backups`). Copy this directory to another machine or bucket; a backup on the same disk as the database does not survive losing that disk.
+- `KONTOTRACK_BACKUP_PASSWORD`: when set, every file in the archive is encrypted with AES-256. The same password is needed to verify and restore.
+- `KONTOTRACK_BACKUP_KEEP`: how many archives to keep (default 14).
+- Keep `APP_KEY` and `KONTOTRACK_BLIND_INDEX_KEY` outside the backups. Employee personal numbers and IBANs are encrypted with them, so a restored database cannot be read without them.
+
+The scheduler runs the backup every day at 02:00 and a restore drill every Sunday at 03:00, so the server needs the cron entry for `php artisan schedule:run`. Failures are written to the application log.
+
+### Restore drill
+
+The drill restores the newest archive into a scratch database (`<database>_restore_drill` on MySQL), checks that every table recorded in the backup is there, compares row counts and deletes the scratch database again. On MySQL the database user needs permission to create and drop that database. Run it before going to production and after every change to the backup setup.
+
+### Restoring after data loss
+
+1. Put the application in maintenance mode: `php artisan down`.
+2. Make sure `.env` has the `APP_KEY`, `KONTOTRACK_BLIND_INDEX_KEY` and `KONTOTRACK_BACKUP_PASSWORD` that were in use when the backup was taken. On a new server, create the empty database first.
+3. Copy the archive to the server and check it: `php artisan kontotrack:backup:verify /path/to/archive.zip`.
+4. Restore it: `php artisan kontotrack:backup:restore /path/to/archive.zip`. The command refuses an archive that fails verification, and first saves the current data as a new archive so the restore itself can be undone. On a new server with an empty database, add `--no-safety-backup`.
+5. If the code is newer than the backup, run `php artisan migrate --force`.
+6. Sign in, open a business and check the latest invoices, the trial balance and a document download.
+7. Bring the application back: `php artisan up`.
+
+Everything entered after the backup was taken is lost by a restore and has to be entered again. Documents uploaded after the backup stay on disk but are no longer listed.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

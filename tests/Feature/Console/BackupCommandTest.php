@@ -120,6 +120,149 @@ class BackupCommandTest extends TestCase
         $this->assertNotContains('kontotrack-20260101-010000-aaaaaa.zip', $remaining);
     }
 
+    public function test_restore_puts_back_the_database_and_documents_and_keeps_a_safety_backup(): void
+    {
+        $business = Business::factory()->create(['legal_name' => 'Before Restore SH.P.K.']);
+        Storage::disk('local')->put("businesses/{$business->id}/documents/bill.pdf", 'original bill');
+        $this->artisan('kontotrack:backup')->assertSuccessful();
+        $archive = File::glob($this->backupDirectory.'/kontotrack-*.zip')[0];
+
+        $business->update(['legal_name' => 'Changed After Backup']);
+        Storage::disk('local')->delete("businesses/{$business->id}/documents/bill.pdf");
+
+        $this->artisan('kontotrack:backup:restore', ['path' => $archive, '--force' => true])->assertSuccessful();
+
+        $this->assertSame('Before Restore SH.P.K.', DB::table('businesses')->where('id', $business->id)->value('legal_name'));
+        $this->assertSame('original bill', Storage::disk('local')->get("businesses/{$business->id}/documents/bill.pdf"));
+        $archives = File::glob($this->backupDirectory.'/kontotrack-*.zip');
+        $this->assertCount(2, $archives);
+        $safetyBackup = array_values(array_diff($archives, [$archive]))[0];
+        $zip = new ZipArchive;
+        $zip->open($safetyBackup);
+        File::put($this->backupDirectory.'/safety.sqlite', $zip->getFromName('database.sqlite'));
+        $zip->close();
+        $safety = new PDO('sqlite:'.$this->backupDirectory.'/safety.sqlite');
+        $this->assertSame('Changed After Backup', $safety->query("SELECT legal_name FROM businesses WHERE id = {$business->id}")->fetchColumn());
+    }
+
+    public function test_restore_asks_before_replacing_live_data(): void
+    {
+        $business = Business::factory()->create(['legal_name' => 'Kept SH.P.K.']);
+        $this->artisan('kontotrack:backup')->assertSuccessful();
+        $archive = File::glob($this->backupDirectory.'/kontotrack-*.zip')[0];
+        $business->update(['legal_name' => 'Still Live']);
+
+        $this->artisan('kontotrack:backup:restore', ['path' => $archive])
+            ->expectsConfirmation("This replaces the live database and business documents with the backup {$archive}. Continue?", 'no')
+            ->expectsOutputToContain('Nothing was restored.')
+            ->assertFailed();
+
+        $this->assertSame('Still Live', DB::table('businesses')->where('id', $business->id)->value('legal_name'));
+        $this->assertCount(1, File::glob($this->backupDirectory.'/kontotrack-*.zip'));
+    }
+
+    public function test_restore_refuses_an_archive_that_fails_verification(): void
+    {
+        $business = Business::factory()->create(['legal_name' => 'Untouched SH.P.K.']);
+        Storage::disk('local')->put('businesses/1/documents/contract.pdf', 'original contract');
+        $this->artisan('kontotrack:backup')->assertSuccessful();
+        $archive = File::glob($this->backupDirectory.'/kontotrack-*.zip')[0];
+        $zip = new ZipArchive;
+        $zip->open($archive);
+        $zip->addFromString('documents/businesses/1/documents/contract.pdf', 'tampered contract');
+        $zip->close();
+        $business->update(['legal_name' => 'Live Name']);
+
+        $this->artisan('kontotrack:backup:restore', ['path' => $archive, '--force' => true])
+            ->expectsOutputToContain('failed verification')
+            ->assertFailed();
+
+        $this->assertSame('Live Name', DB::table('businesses')->where('id', $business->id)->value('legal_name'));
+        $this->assertSame('original contract', Storage::disk('local')->get('businesses/1/documents/contract.pdf'));
+    }
+
+    public function test_restore_drill_checks_the_backup_without_changing_live_data(): void
+    {
+        $business = Business::factory()->create(['legal_name' => 'Drill SH.P.K.']);
+        Storage::disk('local')->put("businesses/{$business->id}/documents/bill.pdf", 'bill');
+        $this->artisan('kontotrack:backup')->assertSuccessful();
+        $business->update(['legal_name' => 'Live After Backup']);
+
+        $this->artisan('kontotrack:backup:restore', ['--drill' => true])
+            ->expectsOutputToContain('Restore drill passed')
+            ->expectsOutputToContain('1 document file(s) in the archive')
+            ->assertSuccessful();
+
+        $this->assertSame('Live After Backup', DB::table('businesses')->where('id', $business->id)->value('legal_name'));
+        $this->assertCount(1, File::glob($this->backupDirectory.'/kontotrack-*.zip'));
+        $this->assertSame([], File::directories($this->backupDirectory));
+    }
+
+    public function test_restore_drill_fails_when_a_table_recorded_in_the_backup_is_missing(): void
+    {
+        $this->artisan('kontotrack:backup')->assertSuccessful();
+        $archive = File::glob($this->backupDirectory.'/kontotrack-*.zip')[0];
+        $zip = new ZipArchive;
+        $zip->open($archive);
+        $manifest = json_decode($zip->getFromName('manifest.json'), true);
+        $manifest['row_counts']['invoices_archive'] = 12;
+        $zip->addFromString('manifest.json', json_encode($manifest));
+        $zip->close();
+
+        $this->artisan('kontotrack:backup:restore', ['path' => $archive, '--drill' => true])
+            ->expectsOutputToContain('Table invoices_archive is missing from the restored database.')
+            ->assertFailed();
+    }
+
+    public function test_mysql_restore_imports_the_dump_with_credentials_from_a_file(): void
+    {
+        File::put($this->backupDirectory.'/dump.sql', "-- MySQL dump\nCREATE TABLE restored (id int);\n-- Dump completed on 2026-07-20\n");
+        $zip = new ZipArchive;
+        $zip->open($this->backupDirectory.'/kontotrack-20260720-020000-abcdef.zip', ZipArchive::CREATE);
+        $zip->addFile($this->backupDirectory.'/dump.sql', 'database.sql');
+        $zip->addFromString('manifest.json', json_encode([
+            'created_at' => '2026-07-20T02:00:00+00:00',
+            'database_driver' => 'mysql',
+            'database_entry' => 'database.sql',
+            'files' => ['database.sql' => hash_file('sha256', $this->backupDirectory.'/dump.sql')],
+        ]));
+        $zip->close();
+        DB::shouldReceive('purge');
+        DB::shouldReceive('connection')->andReturn(new class
+        {
+            public function getDriverName(): string
+            {
+                return 'mysql';
+            }
+
+            /** @return array<string, mixed> */
+            public function getConfig(): array
+            {
+                return ['driver' => 'mysql', 'host' => '127.0.0.1', 'port' => 3306, 'database' => 'kontotrack', 'username' => 'restore_user', 'password' => 's3cret-pass'];
+            }
+        });
+        $credentials = null;
+        $imported = null;
+        Process::fake(function (PendingProcess $process) use (&$credentials, &$imported) {
+            preg_match('/--defaults-extra-file=(\S+)/', implode(' ', (array) $process->command), $credentialsMatch);
+            $credentials = File::get($credentialsMatch[1]);
+            $imported = stream_get_contents($process->input);
+
+            return Process::result();
+        });
+
+        $restore = app(BackupService::class)->restore(safetyBackup: false);
+
+        Process::assertRan(function (PendingProcess $process): bool {
+            $command = (array) $process->command;
+
+            return $command[0] === 'mysql' && end($command) === 'kontotrack' && ! str_contains(implode(' ', $command), 's3cret-pass');
+        });
+        $this->assertStringContainsString('password="s3cret-pass"', (string) $credentials);
+        $this->assertStringContainsString('CREATE TABLE restored', (string) $imported);
+        $this->assertSame('2026-07-20T02:00:00+00:00', $restore['created_at']);
+    }
+
     public function test_mysql_dump_receives_credentials_through_a_file_not_the_command_line(): void
     {
         config(['database.connections.backup_mysql' => [
