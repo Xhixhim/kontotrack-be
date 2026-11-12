@@ -36,6 +36,13 @@ KontoTrack sends these emails: invitations and password links, invoices to custo
 - Set `KONTOTRACK_FRONTEND_URL` to the address of the web app. Links in emails open it.
 - Reminders are sent at 07:00 by the scheduler (`php artisan kontotrack:reminders:send`). Each user can turn them off in their account settings.
 
+## AI features (optional)
+
+Two features use Claude through Anthropic's API and stay off until `ANTHROPIC_API_KEY` is set: reading the fields of an invoice or receipt, and the assistant. Setting the key means document contents and business figures are sent to Anthropic, so decide that with your clients before turning it on.
+
+- What is read from a document is stored as unreviewed data. A person confirms it in the review form before it is used.
+- `KONTOTRACK_AI_MODEL` chooses the model (default `claude-opus-5-5`).
+
 ## Backup and recovery
 
 Backups hold the full database and every uploaded business document in one zip archive.

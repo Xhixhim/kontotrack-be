@@ -7,6 +7,7 @@ use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Resources\Api\V1\DocumentResource;
 use App\Models\Business;
 use App\Models\User;
+use App\Services\Documents\DocumentReadingService;
 use App\Services\Documents\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -65,6 +66,14 @@ class DocumentController extends Controller
         $user = $request->user();
 
         return new DocumentResource($this->documentService->review($business, $user, $document, $attributes, $this->canViewPayroll($request, $business)));
+    }
+
+    public function read(Request $request, Business $business, int $document, DocumentReadingService $readingService): DocumentResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return new DocumentResource($readingService->read($business, $user, $document, $this->canViewPayroll($request, $business)));
     }
 
     public function store(StoreDocumentRequest $request, Business $business): JsonResource
