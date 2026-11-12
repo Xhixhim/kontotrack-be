@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AccountingPeriodController;
+use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\AtkExportController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BankAccountController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\YearEndCloseController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
+use App\Services\Ai\AssistantService;
 use App\Services\Documents\DocumentReadingService;
 use App\Services\Imports\DataImportService;
 use App\Services\Security\SecurityLogService;
@@ -294,7 +296,9 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/businesses/{business}/depreciation-runs/{depreciationRun}', [DepreciationRunController::class, 'destroy'])
             ->middleware('can:manageBookkeeping,business');
         // Optional features the operator has switched on, so the web app only offers what works.
-        Route::get('/features', fn () => response()->json(['data' => ['document_reading' => DocumentReadingService::enabled()]]));
+        Route::get('/features', fn () => response()->json(['data' => ['document_reading' => DocumentReadingService::enabled(), 'assistant' => AssistantService::enabled()]]));
+        Route::post('/businesses/{business}/assistant', [AssistantController::class, 'ask'])
+            ->middleware(['can:view,business', 'throttle:20,1']);
         Route::get('/me/notifications', [NotificationController::class, 'index']);
         Route::get('/businesses/{business}/tasks', [TaskController::class, 'index'])
             ->middleware('can:view,business');

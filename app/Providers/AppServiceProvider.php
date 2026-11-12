@@ -54,7 +54,9 @@ use App\Repositories\Eloquent\EloquentPaymentRepository;
 use App\Repositories\Eloquent\EloquentPayrollRepository;
 use App\Repositories\Eloquent\EloquentPostingAccountRepository;
 use App\Repositories\Eloquent\EloquentTaskRepository;
+use App\Services\Ai\ClaudeAssistantModel;
 use App\Services\Ai\ClaudeInvoiceReader;
+use App\Services\Ai\Contracts\AssistantModel;
 use App\Services\Ai\Contracts\InvoiceReader;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -86,6 +88,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FinancialReportRepository::class, EloquentFinancialReportRepository::class);
         $this->app->bind(OperationalReportRepository::class, EloquentOperationalReportRepository::class);
         $this->app->bind(InvoiceReader::class, ClaudeInvoiceReader::class);
+        $this->app->bind(AssistantModel::class, ClaudeAssistantModel::class);
         // Long timeout: reading a multi-page PDF can take a while. The SDK retries overloads and connection errors itself.
         $this->app->singleton(AnthropicClient::class, fn (): AnthropicClient => new AnthropicClient(apiKey: (string) config('kontotrack.ai.api_key'), requestOptions: ['timeout' => 180.0]));
         $this->app->bind(FixedAssetRepository::class, EloquentFixedAssetRepository::class);
