@@ -32,7 +32,10 @@ class EloquentDocumentRepository implements DocumentRepository
             ->when(isset($filters['review_status']), fn ($query) => $query->where('review_status', $filters['review_status']))
             ->when(isset($filters['from']), fn ($query) => $query->whereDate('document_date', '>=', $filters['from']))
             ->when(isset($filters['to']), fn ($query) => $query->whereDate('document_date', '<=', $filters['to']))
-            ->with('counterparty:id,name')
+            ->when(isset($filters['employee_id']), fn ($query) => $query->where('employee_id', $filters['employee_id']))
+            ->when(isset($filters['payroll_run_id']), fn ($query) => $query->where('payroll_run_id', $filters['payroll_run_id']))
+            ->when(($filters['hide_payroll_linked'] ?? false) === true, fn ($query) => $query->whereNull('employee_id')->whereNull('payroll_run_id'))
+            ->with(['counterparty:id,name', 'employee:id,first_name,last_name', 'payrollRun:id,period_year,period_month'])
             ->latest('id')
             ->get();
     }
@@ -76,6 +79,8 @@ class EloquentDocumentRepository implements DocumentRepository
                 'uploaded_by' => $user->getKey(),
                 'category' => $attributes['category'],
                 'counterparty_id' => $attributes['counterparty_id'] ?? null,
+                'employee_id' => $attributes['employee_id'] ?? null,
+                'payroll_run_id' => $attributes['payroll_run_id'] ?? null,
                 'document_date' => $attributes['document_date'] ?? null,
                 'notes' => $attributes['notes'] ?? null,
                 'original_name' => $file->getClientOriginalName(),

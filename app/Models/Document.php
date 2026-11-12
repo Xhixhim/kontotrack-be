@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['business_id', 'uploaded_by', 'counterparty_id', 'category', 'document_date', 'notes', 'original_name', 'disk', 'path', 'mime_type', 'size_bytes', 'sha256', 'review_status', 'extracted_data', 'reviewed_at', 'reviewed_by'])]
+#[Fillable(['business_id', 'uploaded_by', 'counterparty_id', 'employee_id', 'payroll_run_id', 'category', 'document_date', 'notes', 'original_name', 'disk', 'path', 'mime_type', 'size_bytes', 'sha256', 'review_status', 'extracted_data', 'reviewed_at', 'reviewed_by'])]
 class Document extends Model
 {
     /** @use HasFactory<DocumentFactory> */
@@ -23,6 +23,26 @@ class Document extends Model
     public function counterparty(): BelongsTo
     {
         return $this->belongsTo(Counterparty::class);
+    }
+
+    /** @return BelongsTo<Employee, $this> */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    /** @return BelongsTo<PayrollRun, $this> */
+    public function payrollRun(): BelongsTo
+    {
+        return $this->belongsTo(PayrollRun::class);
+    }
+
+    /**
+     * Documents filed with an employee or a payroll run hold salary data, so they follow the payroll permission.
+     */
+    public function isPayrollLinked(): bool
+    {
+        return $this->employee_id !== null || $this->payroll_run_id !== null;
     }
 
     /** @return BelongsTo<Business, $this> */

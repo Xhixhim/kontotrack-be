@@ -23,6 +23,8 @@ class DocumentResource extends JsonResource
             'document_date' => $this->document_date?->toDateString(),
             'notes' => $this->notes,
             'counterparty' => $this->whenLoaded('counterparty', fn () => $this->counterparty === null ? null : ['id' => $this->counterparty->id, 'name' => $this->counterparty->name]),
+            'employee' => $this->whenLoaded('employee', fn () => $this->employee === null ? null : ['id' => $this->employee->id, 'name' => trim($this->employee->first_name.' '.$this->employee->last_name)]),
+            'payroll_run' => $this->whenLoaded('payrollRun', fn () => $this->payrollRun === null ? null : ['id' => $this->payrollRun->id, 'period' => sprintf('%04d-%02d', $this->payrollRun->period_year, $this->payrollRun->period_month)]),
             'review_status' => $this->review_status,
             'extracted_data' => $this->extracted_data,
             'reviewed_at' => $this->reviewed_at,
