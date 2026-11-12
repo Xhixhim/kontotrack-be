@@ -22,6 +22,7 @@ class Invoice extends Model
             'issued_on' => 'date',
             'due_on' => 'date',
             'issued_at' => 'datetime',
+            'last_sent_at' => 'datetime',
             'cancelled_on' => 'date',
             'cancelled_at' => 'datetime',
             'net_amount' => 'decimal:2',

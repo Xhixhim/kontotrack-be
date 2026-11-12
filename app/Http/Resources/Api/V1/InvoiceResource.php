@@ -24,6 +24,8 @@ class InvoiceResource extends JsonResource
             'status' => $this->status,
             'journal_entry_id' => $this->journal_entry_id,
             'issued_at' => $this->issued_at,
+            'last_sent_at' => $this->last_sent_at,
+            'last_sent_to' => $this->last_sent_to,
             'cancelled_on' => $this->cancelled_on?->toDateString(),
             'cancellation_reason' => $this->cancellation_reason,
             'cancellation_journal_entry_id' => $this->cancellation_journal_entry_id,
