@@ -26,9 +26,11 @@ class DocumentController extends Controller
             'review_status' => ['nullable', 'string', 'in:pending,reviewed'],
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d'],
+            'employee_id' => ['nullable', 'integer'],
+            'payroll_run_id' => ['nullable', 'integer'],
         ]);
 
-        return DocumentResource::collection($this->documentService->filter($business, $filters));
+        return DocumentResource::collection($this->documentService->filter($business, $filters, $this->canViewPayroll($request, $business)));
     }
 
     public function update(Request $request, Business $business, int $document): DocumentResource
@@ -36,13 +38,15 @@ class DocumentController extends Controller
         $attributes = $request->validate([
             'category' => ['sometimes', 'required', 'string', 'in:invoice,receipt,contract,bank_statement,payroll,tax_filing,certificate,authorization,lease,other'],
             'counterparty_id' => ['sometimes', 'nullable', 'integer'],
+            'employee_id' => ['sometimes', 'nullable', 'integer'],
+            'payroll_run_id' => ['sometimes', 'nullable', 'integer'],
             'document_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
         /** @var User $user */
         $user = $request->user();
 
-        return new DocumentResource($this->documentService->update($business, $user, $document, $attributes));
+        return new DocumentResource($this->documentService->update($business, $user, $document, $attributes, $this->canViewPayroll($request, $business)));
     }
 
     public function review(Request $request, Business $business, int $document): DocumentResource
@@ -60,7 +64,7 @@ class DocumentController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        return new DocumentResource($this->documentService->review($business, $user, $document, $attributes));
+        return new DocumentResource($this->documentService->review($business, $user, $document, $attributes, $this->canViewPayroll($request, $business)));
     }
 
     public function store(StoreDocumentRequest $request, Business $business): JsonResource
@@ -69,13 +73,18 @@ class DocumentController extends Controller
         $user = $request->user();
         $file = $request->file('file');
 
-        return new DocumentResource($this->documentService->store($business, $user, $file, $request->validated()));
+        return new DocumentResource($this->documentService->store($business, $user, $file, $request->validated(), $this->canViewPayroll($request, $business)));
     }
 
-    public function download(Business $business, int $document): StreamedResponse
+    public function download(Request $request, Business $business, int $document): StreamedResponse
     {
-        $storedDocument = $this->documentService->findForBusiness($business, $document);
+        $storedDocument = $this->documentService->findForBusiness($business, $document, $this->canViewPayroll($request, $business));
 
         return Storage::disk($storedDocument->disk)->download($storedDocument->path, $storedDocument->original_name);
+    }
+
+    private function canViewPayroll(Request $request, Business $business): bool
+    {
+        return $request->user()?->can('viewPayroll', $business) === true;
     }
 }
