@@ -43,7 +43,7 @@ class PostingAccountControllerTest extends TestCase
         $response = $this->actingAs($user)->getJson("/api/v1/businesses/{$business->id}/posting-accounts");
 
         $response->assertOk()
-            ->assertJsonCount(15, 'data')
+            ->assertJsonCount(16, 'data')
             ->assertJsonPath('data.0.purpose', 'accounts_receivable')
             ->assertJsonPath('data.0.account.code', '1200')
             ->assertJsonPath('data.1.purpose', 'accounts_payable')

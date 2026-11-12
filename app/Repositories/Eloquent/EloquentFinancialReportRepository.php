@@ -15,7 +15,7 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
         $businessId = (int) $business->getKey();
         $movementRange = $type === 'profit_loss' ? $from : null;
         // A balance sheet belongs to the whole business; only movement reports can be narrowed to one unit.
-        $movements = $this->accountMovements($businessId, $movementRange, $to, $type === 'balance_sheet' ? null : $unitId);
+        $movements = $this->accountMovements($businessId, $movementRange, $to, $type === 'balance_sheet' ? null : $unitId, excludeYearEndClosing: $type === 'profit_loss');
         $rows = [];
         $debitTotalCents = 0;
         $creditTotalCents = 0;
@@ -501,7 +501,7 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
     }
 
     /** @return Collection<int, object{code: string, name: string, account_type: string, debit_total: string, credit_total: string}> */
-    private function accountMovements(int $businessId, ?string $from, string $to, ?int $unitId = null): Collection
+    private function accountMovements(int $businessId, ?string $from, string $to, ?int $unitId = null, bool $excludeYearEndClosing = false): Collection
     {
         $postedMovements = DB::table('journal_lines as lines')
             ->join('journal_entries as entries', function ($join): void {
@@ -513,6 +513,8 @@ class EloquentFinancialReportRepository implements FinancialReportRepository
             ->whereDate('entries.entry_date', '<=', $to)
             ->when($from !== null, fn ($query) => $query->whereDate('entries.entry_date', '>=', $from))
             ->when($unitId !== null, fn ($query) => $query->where('entries.business_unit_id', $unitId))
+            // The closing entry empties revenue and expenses; a profit and loss report has to show the year before that.
+            ->when($excludeYearEndClosing, fn ($query) => $query->where('entries.entry_type', '!=', 'year_end_closing'))
             ->select(['lines.account_id', 'lines.business_id'])
             ->selectRaw('SUM(lines.debit) AS debit_total, SUM(lines.credit) AS credit_total')
             ->groupBy('lines.account_id', 'lines.business_id');

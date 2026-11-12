@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\PeriodReopeningController;
 use App\Http\Controllers\Api\V1\PostingAccountController;
 use App\Http\Controllers\Api\V1\SystemUserController;
 use App\Http\Controllers\Api\V1\TaskController;
+use App\Http\Controllers\Api\V1\YearEndCloseController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
 use App\Services\Imports\DataImportService;
@@ -334,6 +335,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:approvePeriodReopening,business');
         Route::post('/businesses/{business}/periods/{period}/reopen-requests/{reopenRequest}/cancel', [PeriodReopeningController::class, 'cancel'])
             ->whereNumber(['period', 'reopenRequest'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::get('/businesses/{business}/year-end/{year}', [YearEndCloseController::class, 'show'])
+            ->where('year', '20[0-9]{2}')
+            ->middleware('can:view,business');
+        Route::post('/businesses/{business}/year-end/{year}/close', [YearEndCloseController::class, 'close'])
+            ->where('year', '20[0-9]{2}')
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/cash-accounts', [CashAccountController::class, 'index'])
             ->middleware('can:view,business');

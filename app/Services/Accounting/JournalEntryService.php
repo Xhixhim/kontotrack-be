@@ -222,6 +222,8 @@ class JournalEntryService
                 'created_by' => $user->getKey(),
                 'reversal_of_id' => $original->getKey(),
                 'document_id' => $original->document_id,
+                // Reversing a year-end closing entry must stay out of profit and loss, like the entry itself.
+                'entry_type' => $original->entry_type ?? 'standard',
                 // The reversal has to cancel the original inside the same unit's figures.
                 'business_unit_id' => $original->business_unit_id,
             ], $lines);
