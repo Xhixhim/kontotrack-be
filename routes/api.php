@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\CashAccountController;
 use App\Http\Controllers\Api\V1\ComplianceRuleSetController;
 use App\Http\Controllers\Api\V1\ConversationController;
 use App\Http\Controllers\Api\V1\CounterpartyController;
+use App\Http\Controllers\Api\V1\DataImportController;
 use App\Http\Controllers\Api\V1\DepreciationRunController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\DocumentRequestController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\Api\V1\SystemUserController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
+use App\Services\Imports\DataImportService;
 use App\Services\Security\SecurityLogService;
 use App\Services\Security\TwoFactorService;
 use Illuminate\Http\Request;
@@ -180,6 +182,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:manageMembers,business');
         Route::post('/businesses/{business}/invitations/accept', [BusinessController::class, 'acceptInvitation']);
         Route::get('/me/business-invitations', [BusinessController::class, 'invitations']);
+        Route::post('/businesses/{business}/imports/{type}', [DataImportController::class, 'store'])
+            ->whereIn('type', DataImportService::TYPES)
+            ->middleware('can:manageBookkeeping,business');
+        Route::get('/businesses/{business}/imports/{type}/template', [DataImportController::class, 'template'])
+            ->whereIn('type', DataImportService::TYPES)
+            ->middleware('can:view,business');
         Route::get('/businesses/{business}/units', [BusinessUnitController::class, 'index'])
             ->middleware('can:view,business');
         Route::post('/businesses/{business}/units', [BusinessUnitController::class, 'store'])
