@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Repositories\Contracts\BusinessControlRepository;
 use App\Repositories\Contracts\ComplianceRuleSetRepository;
 use App\Services\Reports\BankReconciliationReportService;
+use App\Support\KosovoIdentifier;
 
 class BusinessControlService
 {
@@ -29,6 +30,7 @@ class BusinessControlService
             $this->negativeCashCheck($data['negative_cash_accounts']),
             $this->duplicatePurchasesCheck($data['possible_duplicate_purchases']),
             $this->missingNuiCheck($data['counterparties_missing_nui']),
+            $this->identifierFormatCheck($business, $data['counterparty_identifiers']),
             $this->duplicateNuiCheck($data['duplicate_counterparty_nuis']),
             $this->overdueCheck('overdue_receivables', 'Overdue customer invoices', $data['overdue_receivables'], 'customer invoice(s) are past due'),
             $this->overdueCheck('overdue_payables', 'Overdue supplier bills', $data['overdue_payables'], 'supplier bill(s) are past due'),
@@ -146,6 +148,28 @@ class BusinessControlService
         return $items->isEmpty()
             ? $this->check('counterparty_nui', 'Client and supplier NUI', 'ok', 'Every active client and supplier has a NUI.')
             : $this->check('counterparty_nui', 'Client and supplier NUI', 'warning', $items->count().' active client(s) or supplier(s) have no NUI, which the VAT summary reports as missing.', $items->take(10)->all());
+    }
+
+    /**
+     * Wrong identifiers end up on invoices and in the ATK books, so they are flagged before a filing is prepared.
+     *
+     * @param  iterable<object>  $counterparties
+     * @return array{key: string, label: string, severity: string, detail: string, items: list<array<string, mixed>>}
+     */
+    private function identifierFormatCheck(Business $business, iterable $counterparties): array
+    {
+        $items = collect($counterparties)
+            ->reject(fn (object $party): bool => KosovoIdentifier::isValidForCounterparty((string) $party->nui, (string) $party->country_code))
+            ->map(fn (object $party): array => ['id' => (int) $party->id, 'name' => (string) $party->name, 'nui' => (string) $party->nui])
+            ->values();
+
+        if (! KosovoIdentifier::isBusinessNumber((string) $business->nui)) {
+            return $this->check('identifier_format', 'Identifier format', 'critical', "The NUI of this business ({$business->nui}) is not 9 digits. Correct it in the business details; it is printed on every invoice.", $items->take(10)->all());
+        }
+
+        return $items->isEmpty()
+            ? $this->check('identifier_format', 'Identifier format', 'ok', 'The business NUI and every client and supplier identifier have a valid format.')
+            : $this->check('identifier_format', 'Identifier format', 'warning', $items->count().' client(s) or supplier(s) have an identifier that is not a 9-digit NUI/fiscal number or a 10-digit personal number.', $items->take(10)->all());
     }
 
     /**

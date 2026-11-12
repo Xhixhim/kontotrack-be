@@ -22,7 +22,7 @@ class CounterpartyFactory extends Factory
             'business_id' => Business::factory(),
             'type' => fake()->randomElement(['customer', 'supplier', 'both']),
             'name' => fake()->company(),
-            'nui' => fake()->optional()->numerify('##########'),
+            'nui' => fake()->optional()->numerify('81#######'),
             'email' => fake()->companyEmail(),
             'phone' => fake()->phoneNumber(),
             'address' => fake()->streetAddress(),
