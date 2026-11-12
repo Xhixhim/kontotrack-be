@@ -17,6 +17,7 @@ class JournalEntryResource extends JsonResource
         return [
             'id' => $this->id,
             'accounting_period_id' => $this->accounting_period_id,
+            'business_unit_id' => $this->business_unit_id,
             'entry_date' => $this->entry_date?->toDateString(),
             'reference' => $this->reference,
             'description' => $this->description,

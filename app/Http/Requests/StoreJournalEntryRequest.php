@@ -23,6 +23,7 @@ class StoreJournalEntryRequest extends FormRequest
     {
         return [
             'accounting_period_id' => ['required', 'integer'],
+            'business_unit_id' => ['nullable', 'integer'],
             'entry_date' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['required', 'string', 'max:255'],

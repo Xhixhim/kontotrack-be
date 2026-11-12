@@ -21,13 +21,13 @@ class OperationalReportService
     ) {}
 
     /**
-     * @param  array{counterparty_id?: int|null, warehouse_id?: int|null, category?: string|null, group_by?: string|null}  $options
+     * @param  array{counterparty_id?: int|null, warehouse_id?: int|null, category?: string|null, group_by?: string|null, business_unit_id?: int|null}  $options
      * @return array<string, mixed>
      */
     public function generate(Business $business, string $type, string $from, string $to, array $options = []): array
     {
         return match ($type) {
-            'turnover' => $this->turnover($business, $from, $to, $options['counterparty_id'] ?? null, $options['group_by'] ?? 'month'),
+            'turnover' => $this->turnover($business, $from, $to, $options['counterparty_id'] ?? null, $options['group_by'] ?? 'month', $options['business_unit_id'] ?? null),
             'stock' => $this->stock($business, $from, $to, $options['warehouse_id'] ?? null),
             'payroll' => $this->payroll($business, $from, $to),
             'fixed_assets' => $this->fixedAssets($business, $to, $options['category'] ?? null),
@@ -35,7 +35,7 @@ class OperationalReportService
     }
 
     /** @return array<string, mixed> */
-    private function turnover(Business $business, string $from, string $to, ?int $counterpartyId, string $groupBy): array
+    private function turnover(Business $business, string $from, string $to, ?int $counterpartyId, string $groupBy, ?int $unitId): array
     {
         $counterparty = $counterpartyId === null ? null : $business->counterparties()->whereKey($counterpartyId)->first(['id', 'name']);
 
@@ -48,6 +48,10 @@ class OperationalReportService
 
         foreach ($this->financialReportRepository->vatLines($business, $from, $to) as $line) {
             if ($counterpartyId !== null && (int) $line->counterparty_id !== $counterpartyId) {
+                continue;
+            }
+
+            if ($unitId !== null && (int) $line->business_unit_id !== $unitId) {
                 continue;
             }
 
@@ -85,6 +89,7 @@ class OperationalReportService
             'currency' => $business->currency,
             'group_by' => $groupBy,
             'counterparty' => $counterparty === null ? null : ['id' => $counterparty->id, 'name' => $counterparty->name],
+            'business_unit' => $unitId === null ? null : $business->units()->whereKey($unitId)->first(['id', 'name'])?->only(['id', 'name']),
             'rows' => array_map($format, array_values($groups)),
             'totals' => $format($totals),
         ];

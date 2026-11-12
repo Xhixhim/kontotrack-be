@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['business_id', 'counterparty_id', 'document_id', 'journal_entry_id', 'compliance_rule_set_id', 'kind', 'document_type', 'credited_invoice_id', 'invoice_number', 'issued_on', 'due_on', 'payment_method', 'status', 'currency', 'net_amount', 'tax_amount', 'gross_amount', 'tax_snapshot', 'notes', 'created_by', 'issued_by', 'issued_at'])]
+#[Fillable(['business_id', 'counterparty_id', 'business_unit_id', 'document_id', 'journal_entry_id', 'compliance_rule_set_id', 'kind', 'document_type', 'credited_invoice_id', 'invoice_number', 'issued_on', 'due_on', 'payment_method', 'status', 'currency', 'net_amount', 'tax_amount', 'gross_amount', 'tax_snapshot', 'notes', 'created_by', 'issued_by', 'issued_at'])]
 class Invoice extends Model
 {
     /** @use HasFactory<InvoiceFactory> */

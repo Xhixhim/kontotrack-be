@@ -6,13 +6,14 @@ use App\Models\Business;
 use App\Models\JournalEntry;
 use App\Models\User;
 use App\Repositories\Contracts\JournalEntryRepository;
+use App\Services\Units\BusinessUnitService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class JournalEntryService
 {
-    public function __construct(private JournalEntryRepository $journalEntryRepository) {}
+    public function __construct(private JournalEntryRepository $journalEntryRepository, private BusinessUnitService $unitService) {}
 
     /** @return LengthAwarePaginator<int, JournalEntry> */
     public function listForBusiness(Business $business, ?string $status = null): LengthAwarePaginator
@@ -36,6 +37,8 @@ class JournalEntryService
             if (isset($attributes['document_id']) && ! $business->documents()->whereKey($attributes['document_id'])->exists()) {
                 throw ValidationException::withMessages(['document_id' => ['Choose a document that belongs to this business.']]);
             }
+
+            $this->unitService->assertBelongs($business, isset($attributes['business_unit_id']) ? (int) $attributes['business_unit_id'] : null);
 
             $lines = [];
             $debitCents = 0;
@@ -219,6 +222,8 @@ class JournalEntryService
                 'created_by' => $user->getKey(),
                 'reversal_of_id' => $original->getKey(),
                 'document_id' => $original->document_id,
+                // The reversal has to cancel the original inside the same unit's figures.
+                'business_unit_id' => $original->business_unit_id,
             ], $lines);
 
             $business->auditLogs()->create([

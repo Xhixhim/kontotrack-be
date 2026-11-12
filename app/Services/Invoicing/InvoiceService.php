@@ -15,6 +15,7 @@ use App\Services\Accounting\JournalEntryService;
 use App\Services\Accounting\PostingAccountService;
 use App\Services\Inventory\InventoryService;
 use App\Services\Tax\AtkVatBoxes;
+use App\Services\Units\BusinessUnitService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,7 @@ class InvoiceService
         private InventoryService $inventoryService,
         private JournalEntryService $journalEntryService,
         private PostingAccountService $postingAccountService,
+        private BusinessUnitService $unitService,
     ) {}
 
     /** @return LengthAwarePaginator<int, Invoice> */
@@ -75,6 +77,9 @@ class InvoiceService
         if ($counterparty === null || ! in_array($counterparty->type, $allowedTypes, true)) {
             throw ValidationException::withMessages(['counterparty_id' => ['Choose a customer or supplier that belongs to this business.']]);
         }
+
+        // A credit note stays with the unit of its invoice, even when that unit has since been retired.
+        $this->unitService->assertBelongs($business, isset($attributes['business_unit_id']) ? (int) $attributes['business_unit_id'] : null, mustBeActive: ($attributes['document_type'] ?? 'invoice') === 'invoice');
 
         if (isset($attributes['document_id']) && ! $this->documentRepository->isInvoiceForBusiness($business, (int) $attributes['document_id'])) {
             throw ValidationException::withMessages(['document_id' => ['Choose an invoice document that belongs to this business.']]);
@@ -359,6 +364,7 @@ class InvoiceService
                 'reference' => $invoice->invoice_number,
                 'description' => ($isSale ? 'Sales invoice ' : 'Purchase invoice ').$invoice->invoice_number.' – '.$counterpartyName,
                 'document_id' => $invoice->document_id,
+                'business_unit_id' => $invoice->business_unit_id,
                 'lines' => array_values(array_filter($lines, fn (array $line): bool => $line['debit'] !== '0.00' || $line['credit'] !== '0.00')),
             ]);
             $this->journalEntryService->post($business, $user, (int) $journalEntry->getKey());
@@ -393,6 +399,7 @@ class InvoiceService
                 'document_type' => 'credit_note',
                 'credited_invoice_id' => $original->getKey(),
                 'counterparty_id' => $original->counterparty_id,
+                'business_unit_id' => $original->business_unit_id,
             ]);
             $remainingCents = $this->toCents((string) $original->gross_amount) - $this->toCents((string) $original->credited_total);
 

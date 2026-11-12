@@ -16,7 +16,7 @@ interface FinancialReportRepository
      *     totals: array{debit: string, credit: string, result: string}
      * }
      */
-    public function generate(Business $business, string $type, string $from, string $to): array;
+    public function generate(Business $business, string $type, string $from, string $to, ?int $unitId = null): array;
 
     /** @return array<string, mixed> */
     public function generateInvoiceAging(Business $business, string $kind, string $asOf): array;
@@ -27,7 +27,7 @@ interface FinancialReportRepository
      * @param  list<int>|null  $accountIds  null for every account with activity
      * @return list<array<string, mixed>>
      */
-    public function generalLedger(Business $business, ?array $accountIds, string $from, string $to): array;
+    public function generalLedger(Business $business, ?array $accountIds, string $from, string $to, ?int $unitId = null): array;
 
     /** @return array<string, mixed> */
     public function generateVatSummary(Business $business, string $from, string $to): array;

@@ -47,6 +47,7 @@ class FinancialReportController extends Controller
             // The closing balance printed on the bank statement, when the imported file had no balance column.
             'statement_balance' => ['nullable', 'numeric', 'decimal:0,2', 'min:-99999999999999.99', 'max:99999999999999.99'],
             'counterparty_id' => ['nullable', 'integer'],
+            'business_unit_id' => ['nullable', 'integer'],
             'warehouse_id' => ['nullable', 'integer'],
             'category' => ['nullable', 'string', 'max:120'],
             'group_by' => ['nullable', 'string', 'in:month,counterparty'],
@@ -73,6 +74,7 @@ class FinancialReportController extends Controller
             'bank_account_id' => isset($filters['bank_account_id']) ? (int) $filters['bank_account_id'] : null,
             'statement_balance' => isset($filters['statement_balance']) ? (string) $filters['statement_balance'] : null,
             'counterparty_id' => isset($filters['counterparty_id']) ? (int) $filters['counterparty_id'] : null,
+            'business_unit_id' => isset($filters['business_unit_id']) ? (int) $filters['business_unit_id'] : null,
             'warehouse_id' => isset($filters['warehouse_id']) ? (int) $filters['warehouse_id'] : null,
             'category' => $filters['category'] ?? null,
             'group_by' => $filters['group_by'] ?? null,
