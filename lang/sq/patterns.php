@@ -24,6 +24,8 @@ return [
     '/^This API key may not do this \(missing ability: (.+)\)\.$/' => 'Ky çelës API nuk e ka këtë të drejtë ($1).',
     '/^Submitted for review: (.+)$/s' => 'Dorëzuar për rishikim: $1',
     '/^Approve reopening (.+)\? Asked by (.+?): (.*)$/s' => 'Të miratohet rihapja e periudhës $1? Kërkuar nga $2: $3',
+    '/^The payroll is not approved for: (.+)\. Salaries of those months are missing from the books\.$/' => 'Pagat nuk janë miratuar për: $1. Pagat e atyre muajve mungojnë në libra.',
+    '/^Stock is below zero at period end for: (.+)\. Record the missing purchases or a stock count\.$/s' => 'Stoku është nën zero në fund të periudhës për: $1. Regjistro blerjet që mungojnë ose një numërim stoku.',
     '/^No query results for model/' => 'Nuk u gjet.',
     '/^The route .+ could not be found\.$/' => 'Nuk u gjet.',
     '/^Count recorded\./' => 'Numërimi u regjistrua.',

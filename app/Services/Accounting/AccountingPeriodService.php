@@ -209,14 +209,22 @@ class AccountingPeriodService
             [
                 'key' => 'payroll',
                 'label' => 'Payroll review',
-                'status' => 'not_implemented',
-                'detail' => 'Payroll is not available in this version and was not included in the close review.',
+                'status' => $details['months_without_payroll'] === [] ? 'passed' : 'warning',
+                'detail' => match (true) {
+                    ! $details['has_employees'] => 'Nobody was employed in this period.',
+                    $details['months_without_payroll'] === [] => 'The payroll is approved and posted for every month of this period.',
+                    default => 'The payroll is not approved for: '.implode(', ', $details['months_without_payroll']).'. Salaries of those months are missing from the books.',
+                },
             ],
             [
                 'key' => 'inventory',
                 'label' => 'Inventory review',
-                'status' => 'not_implemented',
-                'detail' => 'Inventory is not available in this version and was not included in the close review.',
+                'status' => $details['negative_stock'] === [] ? 'passed' : 'warning',
+                'detail' => match (true) {
+                    ! $details['tracks_stock'] => 'This business does not track stock.',
+                    $details['negative_stock'] === [] => 'No item has a negative quantity at period end.',
+                    default => 'Stock is below zero at period end for: '.implode(', ', array_slice($details['negative_stock'], 0, 10)).'. Record the missing purchases or a stock count.',
+                },
             ],
         ];
 

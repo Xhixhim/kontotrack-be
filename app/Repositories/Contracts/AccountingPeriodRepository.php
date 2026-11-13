@@ -29,7 +29,11 @@ interface AccountingPeriodRepository
      *     bank_transaction_missing_document_count: int,
      *     missing_journal_source_count: int,
      *     unreconciled_bank_transaction_count: int,
-     *     negative_cash_account_count: int
+     *     negative_cash_account_count: int,
+     *     has_employees: bool,
+     *     months_without_payroll: list<string>,
+     *     tracks_stock: bool,
+     *     negative_stock: list<string>
      * }
      */
     public function closingData(Business $business, AccountingPeriod $period): array;
