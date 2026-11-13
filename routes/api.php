@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AccountingPeriodController;
+use App\Http\Controllers\Api\V1\ApiKeyController;
 use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\AtkExportController;
 use App\Http\Controllers\Api\V1\AuditLogController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\V1\DocumentRequestController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\FinancialReportController;
 use App\Http\Controllers\Api\V1\FixedAssetController;
+use App\Http\Controllers\Api\V1\IntegrationController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\Api\V1\PostingAccountController;
 use App\Http\Controllers\Api\V1\SystemUserController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\YearEndCloseController;
+use App\Http\Middleware\AuthenticateIntegration;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
 use App\Services\Ai\AssistantService;
@@ -158,7 +161,20 @@ Route::prefix('v1')->group(function (): void {
         return response()->noContent();
     })->middleware('auth:sanctum');
 
+    // For other systems (POS, web shop): authenticated by a business API key, never by a signed-in user.
+    Route::prefix('integration')->middleware('throttle:120,1')->group(function (): void {
+        Route::get('/business', [IntegrationController::class, 'business'])->middleware(AuthenticateIntegration::class.':read');
+        Route::get('/items', [IntegrationController::class, 'items'])->middleware(AuthenticateIntegration::class.':read');
+        Route::get('/customers', [IntegrationController::class, 'customers'])->middleware(AuthenticateIntegration::class.':read');
+        Route::post('/customers', [IntegrationController::class, 'storeCustomer'])->middleware(AuthenticateIntegration::class.':customers.write');
+        Route::post('/sales', [IntegrationController::class, 'storeSale'])->middleware(AuthenticateIntegration::class.':sales.write');
+        Route::get('/sales/{externalId}', [IntegrationController::class, 'showSale'])->middleware(AuthenticateIntegration::class.':read');
+    });
+
     Route::middleware(['auth:sanctum', EnsureAccountIsActive::class])->group(function (): void {
+        Route::get('/businesses/{business}/api-keys', [ApiKeyController::class, 'index'])->middleware('can:manageMembers,business');
+        Route::post('/businesses/{business}/api-keys', [ApiKeyController::class, 'store'])->middleware('can:manageMembers,business');
+        Route::delete('/businesses/{business}/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->whereNumber('apiKey')->middleware('can:manageMembers,business');
         Route::get('/admin/users', [SystemUserController::class, 'index']);
         Route::post('/admin/users', [SystemUserController::class, 'store']);
         Route::put('/admin/users/{user}', [SystemUserController::class, 'update']);
