@@ -123,7 +123,45 @@ class EloquentAccountingPeriodRepository implements AccountingPeriodRepository
             ->get(['cash.id'])
             ->count();
 
+        // Months of the period in which someone was employed but the payroll was never approved.
+        $monthsWithoutPayroll = [];
+        $hasEmployees = false;
+        $approvedMonths = $business->payrollRuns()->where('status', 'approved')->get(['period_year', 'period_month'])
+            ->map(fn ($run): string => sprintf('%04d-%02d', $run->period_year, $run->period_month))
+            ->flip();
+
+        for ($month = $period->starts_on->copy()->startOfMonth(), $guard = 0; $month->lte($period->ends_on) && $guard < 36; $month = $month->copy()->addMonth(), $guard++) {
+            $employed = $business->employees()
+                ->whereDate('employment_start', '<=', $month->copy()->endOfMonth()->toDateString())
+                ->where(fn ($query) => $query->whereNull('employment_end')->orWhereDate('employment_end', '>=', $month->toDateString()))
+                ->exists();
+
+            if ($employed) {
+                $hasEmployees = true;
+
+                if (! $approvedMonths->has($month->format('Y-m'))) {
+                    $monthsWithoutPayroll[] = $month->format('m.Y');
+                }
+            }
+        }
+
+        $negativeStock = DB::table('stock_movements as movements')
+            ->join('inventory_items as items', 'items.id', '=', 'movements.inventory_item_id')
+            ->join('warehouses', 'warehouses.id', '=', 'movements.warehouse_id')
+            ->where('movements.business_id', $businessId)
+            ->whereDate('movements.occurred_on', '<=', $endsOn)
+            ->groupBy('items.id', 'items.name', 'warehouses.id', 'warehouses.name')
+            ->havingRaw('SUM(movements.quantity_delta) < 0')
+            ->orderBy('items.name')
+            ->get(['items.name as item_name', 'warehouses.name as warehouse_name'])
+            ->map(fn (object $row): string => "{$row->item_name} ({$row->warehouse_name})")
+            ->all();
+
         return [
+            'has_employees' => $hasEmployees,
+            'months_without_payroll' => $monthsWithoutPayroll,
+            'tracks_stock' => $business->inventoryItems()->exists(),
+            'negative_stock' => $negativeStock,
             'draft_invoice_count' => $draftInvoiceCount,
             'purchase_invoice_missing_document_count' => $purchaseInvoiceMissingDocumentCount,
             'payment_missing_document_count' => $paymentMissingDocumentCount,
