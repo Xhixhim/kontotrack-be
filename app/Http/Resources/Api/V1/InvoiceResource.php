@@ -19,6 +19,7 @@ class InvoiceResource extends JsonResource
             'kind' => $this->kind,
             'business_unit_id' => $this->business_unit_id,
             'invoice_number' => $this->invoice_number,
+            'external_id' => $this->external_id,
             'issued_on' => $this->issued_on?->toDateString(),
             'due_on' => $this->due_on?->toDateString(),
             'payment_method' => $this->payment_method,

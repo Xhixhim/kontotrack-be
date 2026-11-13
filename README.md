@@ -36,6 +36,23 @@ KontoTrack sends these emails: invitations and password links, invoices to custo
 - Set `KONTOTRACK_FRONTEND_URL` to the address of the web app. Links in emails open it.
 - Reminders are sent at 07:00 by the scheduler (`php artisan kontotrack:reminders:send`). Each user can turn them off in their account settings.
 
+## Integration API
+
+Other systems (a till, a web shop) connect with an API key that the business owner creates under Settings → API keys. The key is sent as `Authorization: Bearer kt_…` and always acts for the business it was created in, with the permissions of the member who created it.
+
+| Request | Needs | What it does |
+|---|---|---|
+| `GET /api/v1/integration/business` | `read` | The business and the key's abilities |
+| `GET /api/v1/integration/items` | `read` | Active items with stock on hand |
+| `GET /api/v1/integration/customers?nui=&search=` | `read` | Active customers |
+| `POST /api/v1/integration/customers` | `customers.write` | Create a customer |
+| `POST /api/v1/integration/sales` | `sales.write` | Record a sale as a draft invoice, or an issued one with `"issue": true` |
+| `GET /api/v1/integration/sales/{external_id}` | `read` | The invoice recorded for a sale |
+
+A sale carries `external_id` (its id in the sending system), `issued_on`, a `customer` (`id`, or `nui` of a recorded customer, or `name` to create one) and `lines` (`description`, `quantity`, `unit_price`, `vat_code`, and optionally `sku` to take stock from the default warehouse). Sending the same `external_id` again returns the invoice already recorded, so a retry never creates a second invoice. Limit: 120 requests a minute.
+
+Bank, fiscal-device and ATK connections are not part of this API; those need each provider's official documentation and authorisation.
+
 ## AI features (optional)
 
 Two features use Claude through Anthropic's API and stay off until `ANTHROPIC_API_KEY` is set: reading the fields of an invoice or receipt, and the assistant. Setting the key means document contents and business figures are sent to Anthropic, so decide that with your clients before turning it on.
