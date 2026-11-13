@@ -40,13 +40,13 @@ class YearEndCloseService
             $blockers[] = "The year {$year} has not ended yet.";
         }
 
-        $drafts = $business->journalEntries()->where('status', 'draft')->whereBetween('entry_date', ["{$year}-01-01", "{$year}-12-31"])->count();
+        $drafts = $business->journalEntries()->where('status', 'draft')->whereDate('entry_date', '>=', "{$year}-01-01")->whereDate('entry_date', '<=', "{$year}-12-31")->count();
 
         if ($drafts > 0) {
             $blockers[] = "{$drafts} draft journal entr".($drafts === 1 ? 'y is' : 'ies are')." dated in {$year}. Post or delete them first.";
         }
 
-        $draftInvoices = $business->invoices()->where('status', 'draft')->whereBetween('issued_on', ["{$year}-01-01", "{$year}-12-31"])->count();
+        $draftInvoices = $business->invoices()->where('status', 'draft')->whereDate('issued_on', '>=', "{$year}-01-01")->whereDate('issued_on', '<=', "{$year}-12-31")->count();
 
         if ($draftInvoices > 0) {
             $blockers[] = "{$draftInvoices} draft invoice(s) are dated in {$year}. Issue or delete them first.";
@@ -174,7 +174,8 @@ class YearEndCloseService
             ->where('lines.business_id', (int) $business->getKey())
             ->where('entries.status', 'posted')
             ->where('entries.entry_type', '!=', self::ENTRY_TYPE)
-            ->whereBetween('entries.entry_date', ["{$year}-01-01", "{$year}-12-31"])
+            ->whereDate('entries.entry_date', '>=', "{$year}-01-01")
+            ->whereDate('entries.entry_date', '<=', "{$year}-12-31")
             ->whereIn('accounts.account_type', ['revenue', 'expense'])
             ->groupBy('accounts.id', 'accounts.code', 'accounts.name', 'accounts.account_type')
             ->orderBy('accounts.code')

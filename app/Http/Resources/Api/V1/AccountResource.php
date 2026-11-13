@@ -22,6 +22,7 @@ class AccountResource extends JsonResource
             'normal_balance' => $this->normal_balance,
             'parent_id' => $this->parent_id,
             'is_active' => $this->is_active,
+            'tax_activity' => $this->metadata['tax_activity'] ?? null,
         ];
     }
 }

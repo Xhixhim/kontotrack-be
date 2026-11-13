@@ -78,7 +78,7 @@ class KosovoComplianceDraftSeeder extends Seeder
                 'domain' => 'payroll',
                 'version' => '2026.1',
                 'valid_from' => '2026-01-01',
-                'source_title' => 'Personal income tax bands and Kosovo Pension Savings Trust contributions (PwC Tax Summaries; verify against the current Law on Personal Income Tax and Law No. 04/L-101 on Pension Funds)',
+                'source_title' => 'Personal income tax bands as amended by Law No. 08/L-142, and Kosovo Pension Savings Trust contributions under Law No. 04/L-101 on Pension Funds (summary: PwC Tax Summaries; verify against the Official Gazette)',
                 'source_url' => 'https://taxsummaries.pwc.com/kosovo/individual/taxes-on-personal-income',
                 'rules' => [
                     [
@@ -96,6 +96,28 @@ class KosovoComplianceDraftSeeder extends Seeder
                                 ['up_to' => null, 'rate_percent' => '10'],
                             ],
                             'secondary_rate_percent' => '10',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'jurisdiction' => 'XK',
+                'domain' => 'small_business_tax',
+                'version' => '2026.1',
+                'valid_from' => '2026-01-01',
+                'source_title' => 'Tax on gross income for small taxpayers: Law No. 06/L-105 on Corporate Income Tax and the Law on Personal Income Tax (summary: PwC Tax Summaries; verify the limit, rates and minimum against the Official Gazette and ATK)',
+                'source_url' => 'https://taxsummaries.pwc.com/kosovo/corporate/taxes-on-corporate-income',
+                'rules' => [
+                    [
+                        'rule_key' => 'gross_income_tax',
+                        'description' => 'Businesses with annual gross income up to EUR 30,000 pay quarterly on gross income instead of on profit: 3% for trade, transport, agriculture and similar activities, 9% for services, professional and similar activities, and at least EUR 37.50 a quarter. Some sources give EUR 50,000 as the limit for individual businesses; confirm before approving.',
+                        'configuration' => [
+                            'threshold_amount' => '30000.00',
+                            'minimum_per_quarter' => '37.50',
+                            'activities' => [
+                                ['key' => 'trade', 'label' => 'Tregti, transport, bujqësi · Trade, transport, agriculture', 'rate_percent' => '3'],
+                                ['key' => 'services', 'label' => 'Shërbime dhe profesione · Services and professions', 'rate_percent' => '9'],
+                            ],
                         ],
                     ],
                 ],

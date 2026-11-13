@@ -9,6 +9,7 @@ use App\Repositories\Contracts\ComplianceRuleSetRepository;
 use App\Services\Payroll\PayrollCalculator;
 use App\Services\Tasks\TaxCalendarGenerator;
 use App\Services\Tax\AtkVatBoxes;
+use App\Services\Tax\GrossIncomeTaxService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -19,6 +20,7 @@ class ComplianceRuleSetService
         private ComplianceRuleSetRepository $ruleSetRepository,
         private PayrollCalculator $payrollCalculator,
         private TaxCalendarGenerator $taxCalendarGenerator,
+        private GrossIncomeTaxService $grossIncomeTaxService,
     ) {}
 
     /** @return LengthAwarePaginator<int, ComplianceRuleSet> */
@@ -99,6 +101,14 @@ class ComplianceRuleSetService
                     'pension_contributions' => $ruleSet->rules->firstWhere('rule_key', 'pension_contributions')?->configuration,
                     'income_tax' => $ruleSet->rules->firstWhere('rule_key', 'income_tax')?->configuration,
                 ]);
+
+                if ($problems !== []) {
+                    throw ValidationException::withMessages(['rules' => $problems]);
+                }
+            }
+
+            if ($ruleSet->jurisdiction === 'XK' && $ruleSet->domain === GrossIncomeTaxService::DOMAIN) {
+                $problems = $this->grossIncomeTaxService->problems($ruleSet->rules->firstWhere('rule_key', GrossIncomeTaxService::RULE_KEY)?->configuration);
 
                 if ($problems !== []) {
                     throw ValidationException::withMessages(['rules' => $problems]);
