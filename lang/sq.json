@@ -98,6 +98,7 @@
     "Draft payroll deleted.": "Drafti i pagave u fshi.",
     "Duplicate contacts": "Kontakte të dyfishta",
     "Each VAT code needs a code, label, rate_percent, and supported treatment.": "Çdo kod TVSH-je duhet të ketë code, label, rate_percent dhe një trajtim të mbështetur.",
+    "Each gross_income_tax activity needs a simple key, a label and a rate_percent between 0 and 100.": "Çdo aktivitet i gross_income_tax kërkon një key të thjeshtë, label dhe rate_percent ndërmjet 0 dhe 100.",
     "Each line must contain a debit or a credit, but not both.": "Çdo rresht duhet të ketë debi ose kredi, por jo të dyja.",
     "Each stock-tracked invoice line must have both an item and a warehouse.": "Çdo rresht fature me stok duhet të ketë edhe artikullin edhe depon.",
     "Enter the 6-digit code from your authenticator app.": "Shkruaj kodin 6-shifror nga aplikacioni i autentikimit.",
@@ -131,6 +132,7 @@
     "No active employees were employed during this month.": "Asnjë punëtor aktiv nuk ka qenë i punësuar gjatë këtij muaji.",
     "No approved Kosovo VAT rules are effective for this date.": "Asnjë rregull i miratuar i TVSH-së së Kosovës nuk vlen për këtë datë.",
     "No approved payroll rules are effective for this month.": "Asnjë rregull i miratuar i pagave nuk vlen për këtë muaj.",
+    "No approved small-business tax rules are effective for this quarter.": "Asnjë rregull i miratuar i tatimit për biznese të vogla nuk vlen për këtë tremujor.",
     "No approved tax calendar is effective for this year.": "Asnjë kalendar tatimor i miratuar nuk vlen për këtë vit.",
     "No asset needs depreciation for this month.": "Asnjë aset nuk ka nevojë për amortizim këtë muaj.",
     "No bank transaction older than 30 days is waiting to be matched.": "Asnjë transaksion bankar më i vjetër se 30 ditë nuk pret përputhje.",
@@ -168,6 +170,7 @@
     "Only issued invoices can be cancelled.": "Vetëm faturat e lëshuara mund të anulohen.",
     "Only issued or partially paid invoices can receive allocations.": "Vetëm faturat e lëshuara ose pjesërisht të paguara mund të marrin alokime.",
     "Only open requests can receive a document.": "Vetëm kërkesat e hapura mund të marrin dokument.",
+    "Only revenue accounts are grouped by activity.": "Sipas aktivitetit grupohen vetëm llogaritë e të hyrave.",
     "Only sales invoices and their credit notes can be emailed to a customer.": "Me email te klienti mund të dërgohen vetëm faturat e shitjes dhe notat e tyre të kreditit.",
     "Only submitted requests can be accepted or sent back.": "Vetëm kërkesat e dorëzuara mund të pranohen ose të kthehen mbrapsht.",
     "Only the person who asked can withdraw this request.": "Vetëm personi që e ka bërë kërkesën mund ta tërheqë.",
@@ -236,6 +239,7 @@
     "The posted journal entry must balance and contain the invoice total on the matching customer or supplier account.": "Regjistrimi kontabël i postuar duhet të jetë i balancuar dhe të përmbajë totalin e faturës në llogarinë përkatëse të klientit ose furnitorit.",
     "The reading service could not be reached. Check the server's internet connection, or type the fields in.": "Shërbimi i leximit nuk u arrit. Kontrollo lidhjen e serverit me internetin, ose shkruaji fushat vetë.",
     "The residual value must be lower than the cost.": "Vlera e mbetur duhet të jetë më e ulët se kostoja.",
+    "The rule set needs a gross_income_tax rule.": "Grupi i rregullave duhet të ketë një rregull gross_income_tax.",
     "The rule text must appear in this line's description.": "Teksti i rregullit duhet të gjendet në përshkrimin e këtij rreshti.",
     "The sales invoice sequence has reached its limit for this year.": "Numërimi i faturave të shitjes e ka arritur kufirin për këtë vit.",
     "The selected member is not available for a private business chat.": "Anëtari i zgjedhur nuk është i disponueshëm për bisedë private të biznesit.",
@@ -310,5 +314,9 @@
     "You have been invited to join this business.": "Jeni ftuar t'i bashkoheni këtij biznesi.",
     "You may not file documents with employees or payroll.": "Nuk lejohesh të ruash dokumente te punëtorët ose pagat.",
     "Your password has been changed. Other devices have been signed out.": "Fjalëkalimi u ndryshua. Pajisjet e tjera dolën nga llogaria.",
-    "Your password has been saved. You can sign in now.": "Fjalëkalimi u ruajt. Tani mund të hysh."
+    "Your password has been saved. You can sign in now.": "Fjalëkalimi u ruajt. Tani mund të hysh.",
+    "gross_income_tax activity keys must be unique.": "Çelësat e aktiviteteve të gross_income_tax duhet të jenë unikë.",
+    "gross_income_tax needs a minimum_per_quarter of zero or more.": "gross_income_tax kërkon minimum_per_quarter zero ose më shumë.",
+    "gross_income_tax needs a positive threshold_amount.": "gross_income_tax kërkon threshold_amount pozitiv.",
+    "gross_income_tax needs at least one activity with key, label and rate_percent.": "gross_income_tax kërkon së paku një aktivitet me key, label dhe rate_percent."
 }

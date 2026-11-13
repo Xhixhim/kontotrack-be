@@ -90,6 +90,23 @@ class YearEndCloseTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['business_id' => $this->business->id, 'action' => 'year_end.closed', 'subject_id' => $entryId, 'user_id' => $this->user->id]);
     }
 
+    public function test_entries_on_the_last_day_of_the_year_are_included(): void
+    {
+        $this->post2025('bank', 'sales', '1000.00');
+        $entryId = $this->actingAs($this->user)->postJson("/api/v1/businesses/{$this->business->id}/journal-entries", [
+            'accounting_period_id' => $this->period->id,
+            'entry_date' => '2025-12-31',
+            'description' => 'Last-day sale',
+            'lines' => [
+                ['account_id' => $this->accounts['bank']->id, 'debit' => '200.00', 'credit' => '0.00'],
+                ['account_id' => $this->accounts['sales']->id, 'debit' => '0.00', 'credit' => '200.00'],
+            ],
+        ])->assertCreated()->json('data.id');
+        $this->actingAs($this->user)->postJson("/api/v1/businesses/{$this->business->id}/journal-entries/{$entryId}/post")->assertOk();
+
+        $this->actingAs($this->user)->getJson("/api/v1/businesses/{$this->business->id}/year-end/2025")->assertJsonPath('data.result', '1200.00');
+    }
+
     public function test_a_loss_is_debited_to_retained_earnings(): void
     {
         $this->post2025('bank', 'sales', '100.00');

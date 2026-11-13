@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\DocumentRequestController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\FinancialReportController;
 use App\Http\Controllers\Api\V1\FixedAssetController;
+use App\Http\Controllers\Api\V1\GrossIncomeTaxController;
 use App\Http\Controllers\Api\V1\IntegrationController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InvoiceController;
@@ -358,6 +359,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('can:approvePeriodReopening,business');
         Route::post('/businesses/{business}/periods/{period}/reopen-requests/{reopenRequest}/cancel', [PeriodReopeningController::class, 'cancel'])
             ->whereNumber(['period', 'reopenRequest'])
+            ->middleware('can:manageBookkeeping,business');
+        Route::get('/businesses/{business}/tax/gross-income', [GrossIncomeTaxController::class, 'show'])
+            ->middleware('can:view,business');
+        Route::put('/businesses/{business}/accounts/{account}/tax-activity', [GrossIncomeTaxController::class, 'assignActivity'])
+            ->whereNumber('account')
             ->middleware('can:manageBookkeeping,business');
         Route::get('/businesses/{business}/year-end/{year}', [YearEndCloseController::class, 'show'])
             ->where('year', '20[0-9]{2}')
